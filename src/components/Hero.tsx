@@ -56,15 +56,18 @@ const Hero = () => {
             <Mail size={20} />
           </a>
         </div>
+
+        <div className="mt-8 flex justify-center opacity-0 animate-fade-in-up delay-500">
+          <a
+            href="#about"
+            className="p-3 brutal-border animate-bounce"
+            aria-label="Scroll down"
+          >
+            <ArrowDown size={20} />
+          </a>
+        </div>
       </div>
 
-      <a
-        href="#about"
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 p-3 brutal-border animate-bounce"
-        aria-label="Scroll down"
-      >
-        <ArrowDown size={20} />
-      </a>
     </section>
   );
 };

@@ -54,8 +54,8 @@ const Projects = () => {
               key={repo.id}
               className={`brutal-card group ${index === 0 ? "md:col-span-2" : ""}`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-2">
+                <div className="flex-1">
                   <span className="font-mono text-sm text-muted-foreground">
                     {repo.language || "Project"}
                   </span>
@@ -65,7 +65,7 @@ const Projects = () => {
                   href={repo.html_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 brutal-border hover:bg-foreground hover:text-background transition-colors"
+                  className="p-2 brutal-border hover:bg-foreground hover:text-background transition-colors self-start sm:self-auto"
                   aria-label={`View ${repo.name} on GitHub`}
                 >
                   <Github size={18} />
