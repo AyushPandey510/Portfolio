@@ -12,15 +12,16 @@ const About = () => {
           
           <div className="space-y-6">
             <p className="text-body-lg opacity-80">
-              I'm a B.Sc. Computer Science student at Thakur Ramnarayan College of Arts 
-              and Commerce, Mumbai, with a CGPA of 9.27. My passion lies in crafting 
-              efficient backend systems and secure APIs.
+               I'm a graduate in B.Sc. Computer Science from Thakur Ramnarayan College of Arts 
+               and Commerce, Mumbai, with a CGPA of 9.27. My passion lies in building 
+               efficient backend systems, scalable architectures, and secure APIs.
             </p>
             <p className="text-body-lg opacity-80">
-              With hands-on experience in Rust, Python, and JavaScript, I've built 
-              production-ready applications from e-commerce platforms to real-time 
-              file-sharing systems. I believe in writing clean, maintainable code 
-              that scales.
+               With hands-on experience in Rust, Python, JavaScript, and modern AI frameworks, 
+               I've built high-performance systems including RAG-based applications, AI-powered 
+               platforms like LifeEngine, real-time file-sharing systems, and cybersecurity tools. 
+               I enjoy working on distributed systems, vector search, LLM integrations, and 
+               production-ready backend infrastructure focused on performance, scalability, and reliability.
             </p>
             <div className="pt-4">
               <div className="grid grid-cols-2 gap-6">
