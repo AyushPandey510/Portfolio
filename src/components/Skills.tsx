@@ -1,53 +1,103 @@
-const skillCategories = [
-  {
-    title: "Languages",
-    skills: ["Python", "Rust", "JavaScript", "TypeScript", "Dart", "SQL"],
-  },
-  {
-    title: "Backend",
-    skills: ["Actix Web", "Warp", "FastAPI", "Flask", "REST APIs", "JWT", "RBAC"],
-  },
-  {
-    title: "Frontend & Mobile",
-    skills: ["React", "Flutter"],
-  },
-  {
-    title: "Databases",
-    skills: ["PostgreSQL", "MongoDB", "MySQL", "SQLite"],
-  },
-  {
-    title: "Tools",
-    skills: ["Docker", "Git", "Linux", "CI/CD", "Swagger/OpenAPI"],
-  },
-];
+import { useEffect, useRef, useState } from "react";
+import { layers, projects, type LayerId } from "@/data/profile";
+import { layerIcon } from "./icons";
 
 const Skills = () => {
-  return (
-    <section id="skills" className="section-padding">
-      <div className="max-w-6xl mx-auto">
-        <span className="font-mono text-sm tracking-wider text-muted-foreground mb-4 block">
-          02 — Skills
-        </span>
-        <h2 className="text-headline mb-16">Technical Arsenal</h2>
+  const [active, setActive] = useState<LayerId>("ai");
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
-        <div className="space-y-12">
-          {skillCategories.map((category, index) => (
-            <div key={category.title} className="grid md:grid-cols-4 gap-4 md:gap-8">
-              <div className="md:col-span-1">
-                <span className="font-mono text-sm text-muted-foreground">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3 className="text-xl font-bold mt-1">{category.title}</h3>
-              </div>
-              <div className="md:col-span-3 flex flex-wrap gap-3">
-                {category.skills.map((skill) => (
-                  <span key={skill} className="skill-tag">
-                    {skill}
+  useEffect(() => {
+    const on = (e: Event) => setActive((e as CustomEvent<LayerId>).detail);
+    window.addEventListener("layer:select", on);
+    return () => window.removeEventListener("layer:select", on);
+  }, []);
+
+  const onKey = (e: React.KeyboardEvent, i: number) => {
+    const dir = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!dir) return;
+    e.preventDefault();
+    const next = layers[(i + dir + layers.length) % layers.length];
+    setActive(next.id);
+    tabRefs.current[next.id]?.focus();
+  };
+
+  return (
+    <section className="section skills" id="skills" aria-labelledby="skills-h">
+      <div className="wrap">
+        <div className="section-head">
+          <h2 id="skills-h" className="h2">
+            Six layers, one person.
+          </h2>
+          <p className="section-intro">
+            Every colour on this site is one of these layers. Pick one to see what I use, how I use it, and
+            where you can check the work.
+          </p>
+        </div>
+
+        <div className="skills-ui">
+          <div className="tabs" role="tablist" aria-label="Skill areas" aria-orientation="vertical">
+            {layers.map((l, i) => {
+              const Icon = layerIcon[l.id];
+              const on = l.id === active;
+              return (
+                <button
+                  key={l.id}
+                  ref={(el) => (tabRefs.current[l.id] = el)}
+                  role="tab"
+                  id={`tab-${l.id}`}
+                  aria-selected={on}
+                  aria-controls={`panel-${l.id}`}
+                  tabIndex={on ? 0 : -1}
+                  className={`tab c-${l.id} ${on ? "is-on" : ""}`}
+                  onClick={() => setActive(l.id)}
+                  onKeyDown={(e) => onKey(e, i)}
+                >
+                  <span className="tab-icon">
+                    <Icon size={22} />
                   </span>
-                ))}
-              </div>
-            </div>
-          ))}
+                  <span className="tab-text">
+                    <span className="tab-name">{l.name}</span>
+                    <span className="tab-sum">{l.summary}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {layers.map((l) => {
+            const Icon = layerIcon[l.id];
+            const proof = projects.filter((p) => l.proof.includes(p.slug));
+            return (
+              <article
+                key={l.id}
+                role="tabpanel"
+                id={`panel-${l.id}`}
+                aria-labelledby={`tab-${l.id}`}
+                hidden={l.id !== active}
+                className={`panel c-${l.id}`}
+              >
+                <Icon size={56} className="panel-icon draw" />
+                <h3 className="panel-title">{l.name}</h3>
+                <p className="panel-detail">{l.detail}</p>
+
+                <h4 className="panel-sub">Tools I reach for</h4>
+                <ul className="chips">
+                  {l.tools.map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ul>
+
+                <h4 className="panel-sub">Where to check it</h4>
+                <ul className="proof">
+                  {proof.map((p) => (
+                    <li key={p.slug}>
+                      <a href={`#project-${p.slug}`}>{p.name}</a>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

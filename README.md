@@ -1,52 +1,24 @@
-# Ayush Pandey
+# Ayush Pandey — Portfolio
 
-A modern React application built with Vite, TypeScript, and Tailwind CSS.
+Personal site of Ayush Pandey: software engineer (frontend at Q2Pay; Rust/Python backends, React/Flutter apps, RAG/LLM features).
 
-## Getting Started
+Live: https://portfolio-ayushpandey.vercel.app
 
-### Prerequisites
+## Editing content
+Every word on the site lives in **`src/data/profile.ts`** — skills, projects, timeline, FAQ.
+The page, the JSON-LD structured data and `llms.txt` are all generated from it, so edit once.
 
-- Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-### Installation
-
-1. Clone the repository:
-
+## Scripts
 ```sh
-git clone <YOUR_GIT_URL>
+npm install --legacy-peer-deps
+npm run dev      # local dev server on :8080
+npm run build    # client build + SSR pre-render + JSON-LD + llms.txt into dist/
+npm run preview
 ```
 
-2. Navigate to the project directory:
-
-```sh
-cd monochrome-muse-main
-```
-
-3. Install dependencies:
-
-```sh
-npm install
-```
-
-4. Start the development server:
-
-```sh
-npm run dev
-```
-
-## Technologies Used
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## Available Scripts
-
-- `npm run dev` - Start the development server
-- `npm run build` - Build the project for production
-- `npm run preview` - Preview the production build
-- `npm run lint` - Run ESLint
+## How it is built
+- React 18 + TypeScript + Vite, hand-written CSS (`src/index.css`), custom SVG icon set (`src/components/icons.tsx`).
+- `npm run build` pre-renders the page to static HTML (`scripts/prerender.mjs`) so search engines and AI crawlers read everything without JavaScript; the browser then hydrates it.
+- SEO / AI: canonical + Open Graph + Twitter tags, Person/ProfilePage/ItemList/FAQPage JSON-LD, `sitemap.xml`, `robots.txt` that welcomes AI crawlers, `llms.txt`.
+- Motion: one page-load sequence, an animated system diagram (SVG SMIL), scroll-linked process rail, Lenis smooth scrolling on desktop. All respect `prefers-reduced-motion`.
+- Fonts are self-hosted (Bricolage Grotesque variable, JetBrains Mono) via Fontsource.

@@ -1,79 +1,51 @@
-import { Mail, Phone, Linkedin, Github, ArrowUpRight } from "lucide-react";
+import { useState } from "react";
+import { person } from "@/data/profile";
+import { IconCheck, IconCopy, IconGithub, IconLinkedin, IconMail } from "./icons";
 
 const Contact = () => {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(person.email);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.location.href = `mailto:${person.email}`;
+    }
+  };
+
   return (
-    <section id="contact" className="section-padding">
-      <div className="max-w-6xl mx-auto">
-        <span className="font-mono text-sm tracking-wider text-muted-foreground mb-4 block">
-          06 — Contact
-        </span>
-        <h2 className="text-headline mb-8">Let's Work Together</h2>
-        <p className="text-body-lg text-muted-foreground max-w-2xl mb-16">
-          I'm currently looking for Software Development Engineer (SDE-1) roles. 
-          If you have an opportunity that matches my skills, let's connect!
-        </p>
-
-        <div className="grid md:grid-cols-2 gap-6 mb-16">
-          <a
-            href="mailto:ayushgauravpandey@gmail.com"
-            className="brutal-card group flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <Mail size={24} />
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-bold">ayushgauravpandey@gmail.com</p>
-              </div>
-            </div>
-            <ArrowUpRight size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+    <section className="contact" id="contact" aria-labelledby="contact-h">
+      <div className="wrap">
+        <h2 id="contact-h" className="contact-h">
+          Have a role or a problem worth building? Let's talk.
+        </h2>
+        <div className="contact-row">
+          <a className="contact-mail" href={`mailto:${person.email}`}>
+            <IconMail size={28} />
+            <span>{person.email}</span>
           </a>
-
-          <a
-            href="tel:+917007257841"
-            className="brutal-card group flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <Phone size={24} />
-              <div>
-                <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-bold">+91-7007257841</p>
-              </div>
-            </div>
-            <ArrowUpRight size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </a>
-
-          <a
-            href="https://linkedin.com/in/ayush-pandey-097027242"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="brutal-card group flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <Linkedin size={24} />
-              <div>
-                <p className="text-sm text-muted-foreground">LinkedIn</p>
-                <p className="font-bold">ayush-pandey-097027242</p>
-              </div>
-            </div>
-            <ArrowUpRight size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </a>
-
-          <a
-            href="https://github.com/AyushPandey510"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="brutal-card group flex items-center justify-between"
-          >
-            <div className="flex items-center gap-4">
-              <Github size={24} />
-              <div>
-                <p className="text-sm text-muted-foreground">GitHub</p>
-                <p className="font-bold">AyushPandey510</p>
-              </div>
-            </div>
-            <ArrowUpRight size={20} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-          </a>
+          <button className="btn btn-ink" onClick={copy} aria-live="polite">
+            {copied ? <IconCheck size={18} /> : <IconCopy size={18} />}
+            {copied ? "Copied" : "Copy email"}
+          </button>
         </div>
+        <ul className="contact-links">
+          <li>
+            <a href={person.linkedin} target="_blank" rel="noopener me">
+              <IconLinkedin size={20} /> LinkedIn
+            </a>
+          </li>
+          <li>
+            <a href={person.github} target="_blank" rel="noopener me">
+              <IconGithub size={20} /> GitHub
+            </a>
+          </li>
+          <li>
+            <a href={`tel:${person.phone.replace(/-/g, "")}`}>{person.phone}</a>
+          </li>
+        </ul>
       </div>
     </section>
   );

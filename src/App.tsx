@@ -1,27 +1,31 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
 import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const App = () => {
+  // Smooth, inertia-based scrolling on desktop. Skipped for touch and reduced-motion users.
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    if (reduce || coarse) return;
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    let stop = () => {};
+    import("lenis").then(({ default: Lenis }) => {
+      const lenis = new Lenis({ lerp: 0.1, anchors: { offset: -72 } });
+      let id = 0;
+      const raf = (t: number) => {
+        lenis.raf(t);
+        id = requestAnimationFrame(raf);
+      };
+      id = requestAnimationFrame(raf);
+      stop = () => {
+        cancelAnimationFrame(id);
+        lenis.destroy();
+      };
+    });
+    return () => stop();
+  }, []);
+
+  return <Index />;
+};
 
 export default App;
