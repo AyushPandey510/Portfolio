@@ -51,6 +51,7 @@ export const cases: CaseStudy[] = [
     summary: "A print-shop queue on AWS Lambda and single-table DynamoDB, with live updates over DynamoDB Streams.",
     stack: ["Go", "AWS Lambda", "DynamoDB", "CDK", "React PWA"],
     repo: "https://github.com/AyushPandey510/counter-drop",
+    live: "https://counterdrop.cloudsuggest.in",
   },
   {
     slug: "phisguard",

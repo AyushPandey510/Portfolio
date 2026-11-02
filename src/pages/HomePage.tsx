@@ -17,7 +17,7 @@ const work: WorkRow[] = [
     flow: [{ label: "Web, app", c: "c-web" }, { label: "Warp stream", c: "c-be", hot: true }, { label: "Disk", c: "c-data" }] },
   { slug: "life-engine", no: "S-03", name: "Life Engine AI", line: "An AI you talk to as your future self, grounded in your goals.", stack: "FastAPI, React, Groq, FAISS",
     flow: [{ label: "React", c: "c-web" }, { label: "FastAPI", c: "c-be" }, { label: "Groq LLM", c: "c-ai", hot: true }] },
-  { slug: "counter-drop", no: "S-04", name: "Counter Drop", line: "A print-shop queue on Lambda and one DynamoDB table.", stack: "Go, DynamoDB, CDK, PWA", img: "/work/counterdrop-board.webp",
+  { slug: "counter-drop", no: "S-04", name: "Counter Drop", tag: "live", line: "A print-shop queue on Lambda and one DynamoDB table.", stack: "Go, DynamoDB, CDK, PWA", img: "/work/counterdrop-board.webp",
     flow: [{ label: "PWA", c: "c-web" }, { label: "Go Lambdas", c: "c-be" }, { label: "DynamoDB", c: "c-data", hot: true }] },
   { slug: "phisguard", no: "S-05", name: "PhisGuard", line: "Scores a page's phishing risk the moment it loads.", stack: "Flask, Chrome MV3, scikit-learn",
     flow: [{ label: "Extension", c: "c-ship" }, { label: "Flask", c: "c-be" }, { label: "Risk score", c: "c-ai", hot: true }] },
@@ -196,10 +196,10 @@ export default function HomePage() {
               <img className="d-phone" src="/work/counterdrop-drop.webp" width="600" height="1298" loading="lazy" alt="Counter Drop on a phone: two PDFs, print settings, and a Send to counter button showing 16 rupees." />
             </figure>
             <div className="spread-txt">
-              <p className="sh-k"><span>S-04</span>Serverless</p>
+              <p className="sh-k"><span>S-04</span>Live, serverless</p>
               <h3>A print shop's queue, on one DynamoDB table.</h3>
               <p>Customers drop PDFs from their phone, the shop works a live board. Go on Lambda, one table with four indexes, token numbers from an atomic counter, live updates from DynamoDB Streams.</p>
-              <div className="spread-links"><Link to="/work/counter-drop">Read the table design</Link></div>
+              <div className="spread-links"><Link to="/work/counter-drop">Read the table design</Link><a href="https://counterdrop.cloudsuggest.in">Try it live</a></div>
             </div>
           </article>
         </section>
