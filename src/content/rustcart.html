@@ -1,0 +1,178 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-07 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-07, backend and research, solo build</p>
+<h1 class="title">RustCart API</h1>
+<p class="dek">An e-commerce and payments backend in Rust, and the system behind my research paper.</p>
+<div class="meta">
+<span class="chip">6 min read</span>
+<span class="chip">Rust, Actix Web</span>
+<span class="chip">PostgreSQL, SQLx</span>
+<span class="chip">Razorpay</span>
+<span class="chip">React</span>
+<span class="chip">Docker</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/Rust-Ecom-Api">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Question</h2><p>Does Rust's ownership model and async runtime make an e-commerce backend measurably safer?</p></div>
+<div><h2>My role</h2><p>Built the API and its React front end, then wrote the paper: Leveraging Rust for Modern E-Commerce Security (2025).</p></div>
+<div><h2>Result</h2><p>JWT auth, admin and customer roles, transactional orders, login rate limiting, OpenAPI docs and 10 integration tests.</p></div>
+<div><h2>Hardest part</h2><p>Keeping stock and money correct when two people order the last item at once.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#data">Data model</a></li><li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#data">Data model</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">Many web vulnerabilities come down to memory mistakes, data races and unchecked input. Rust rules out the first two at compile time. For my paper I wanted to test that claim on something real, so I built a complete shop backend: users, products, orders, payments and password resets.</p>
+<p class="pull">A paper is more convincing when there's a running system behind it.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Clients</div><div class="tier-c">
+<div class="node c-web"><b>React storefront</b>its own Docker image</div>
+<div class="node c-web"><b>Swagger UI</b>generated from the code with utoipa</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS, /api/v1</div>
+<div class="tier"><div class="tier-l">Actix Web</div><div class="tier-c">
+<div class="node c-be"><b>Middleware</b>JSON tracing logs, security headers, CORS, compression</div>
+<div class="node c-be"><b>Auth middleware</b>JWT check; admin or customer role</div>
+<div class="node c-be"><b>Login limiter</b>5 attempts a minute per IP</div>
+<div class="node c-be hot"><b>Order service</b>one database transaction per order</div>
+<div class="node c-be"><b>Routes</b>auth, users, products, orders, payments, password reset</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>SQLx</div>
+<div class="tier"><div class="tier-l">Data and payments</div><div class="tier-c">
+<div class="node c-data"><b>PostgreSQL</b>users, products, orders, order items, password resets</div>
+<div class="node c-ship"><b>Razorpay</b>payment orders and webhooks</div>
+</div></div>
+<figcaption>src/main.rs, src/routes and src/services</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">Two buyers, one item left</h2>
+<p class="p">Placing an order touches several tables: check each product, total the price, create the order, record each line, and reduce stock. If any step fails halfway, the shop ends up with an order nobody paid for or stock that never comes back. So the whole thing runs in one <span class="term" tabindex="0">transaction<span class="tip" role="tooltip">A group of database changes that either all happen or none do.</span></span>.</p>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span class="c-be">Order service</span></div><p>Begin a transaction.</p></div></div>
+<div class="seq-r"><span class="seq-n">2</span><div><div class="who"><span class="c-be">Order service</span>to<span class="c-data">Postgres</span></div><p>For each item, load the active product, check there's enough stock, and add to the total in paise.</p></div></div>
+<div class="seq-r"><span class="seq-n">3</span><div><div class="who"><span class="c-be">Order service</span>to<span class="c-data">Postgres</span></div><p>Insert the order, then each line with the price at the moment of purchase.</p></div></div>
+<div class="seq-r hot"><span class="seq-n" style="background: #D7361F">4</span><div><div class="who"><span class="c-be">Order service</span>to<span class="c-data">Postgres</span></div><p>UPDATE products SET stock = stock - quantity.</p></div></div>
+<div class="seq-r"><span class="seq-n">5</span><div><div class="who"><span class="c-be">Order service</span></div><p>Commit. Any error before this point rolls everything back.</p></div></div>
+</div>
+<p class="p" style="margin-top: 24px">Now two people buy the last item at the same moment. Both read a stock of 1, and both pass the check in step 2. What stops the shop selling two is the database itself: the products table has <code style="font-family: 'IBM Plex Mono', monospace; font-size: 16px">CHECK (stock &gt;= 0)</code>, so the second UPDATE would take stock to −1 and Postgres refuses it. That transaction rolls back, and nothing is oversold.</p>
+<div class="full-only">
+<div class="note">
+<h3>What the losing buyer sees today</h3>
+<p>A generic error rather than a clear "sold out". The data stays correct, but the message doesn't. Making the stock update conditional fixes that; it's first in section 06.</p>
+</div>
+</div>
+</section>
+
+<div class="full-only">
+<section id="data" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">Data model</h2>
+<p class="p">Money is stored as whole paise, never as floating point, and the database checks the rules the code also checks.</p>
+<div class="cards">
+<div class="card"><h4 class="c-data">products</h4><pre>price_cents  INTEGER  CHECK (&gt;= 0)
+stock        INTEGER  CHECK (&gt;= 0)</pre><p class="red">The stock check is what makes the race safe.</p></div>
+<div class="card"><h4 class="c-data">orders</h4><pre>user_id → users
+status, total_price_cents
+shipping_address</pre><p>One row per checkout.</p></div>
+<div class="card"><h4 class="c-data">order_items</h4><pre>order_id → orders (cascade)
+product_id → products
+quantity CHECK (&gt; 0)
+price_at_purchase_cents</pre><p>Keeps what the buyer actually paid, even if the price changes later.</p></div>
+<div class="card"><h4 class="c-data">password_resets</h4><pre>user_id → users (cascade)</pre><p>Reset requests tied to a user and deleted with them.</p></div>
+</div>
+</section>
+
+<section id="decisions" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>Integer paise</b></span><span data-l="Over">Floating-point rupees</span><span data-l="Because">No rounding errors in totals.</span><span data-l="It costs">Formatting at the edges.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Database checks</b></span><span data-l="Over">Only checks in Rust</span><span data-l="Because">The last line of defence holds under races.</span><span data-l="It costs">Errors arrive as database errors.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Price snapshot per line</b></span><span data-l="Over">Joining to today's price</span><span data-l="Because">Invoices never change after the fact.</span><span data-l="It costs">A little duplicated data.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Rate limit on login only</b></span><span data-l="Over">Limiting everything</span><span data-l="Because">Guessing passwords is the main attack.</span><span data-l="It costs">Other endpoints are unlimited.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>A clear "sold out"</h4><p class="only">UPDATE … WHERE stock &gt;= quantity, and return a 409 when no row changes, instead of a generic error.</p></div>
+<div class="card"><h4>Razorpay's signature scheme</h4><p class="only">Verify webhooks with HMAC-SHA256 as Razorpay signs them, using a constant-time comparison.</p></div>
+<div class="card"><h4>Idempotent checkout</h4><p class="only">An idempotency key per checkout, so a retried request can't create a second order.</p></div>
+<div class="card"><h4>Limits beyond login</h4><p class="only">Rate limits on registration and password resets too.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/xpensecalc"><span>Previous, S-06</span><b>XpenseCalc</b></a>
+<a class="nv" href="/work/changeshare" style="text-align: right"><span>Next, S-08</span><b>ChangeShare</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Ask me for the paper.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

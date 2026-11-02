@@ -1,0 +1,311 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-01 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-01, full-stack, solo build</p>
+<h1 class="title">Space</h1>
+<p class="dek">Anonymous chat rooms you can only enter while you are physically inside them.</p>
+<div class="meta">
+<span class="chip">9 min read</span>
+<span class="chip">Rust, Axum</span>
+<span class="chip">Flutter</span>
+<span class="chip">PostgreSQL</span>
+<span class="chip">WebSockets</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/anonymous">Read the source</a>
+<a class="btn btn-line" href="/#engine">Try the geofence engine</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>A chat that exists only where you stand, and can't be faked from a sofa.</p></div>
+<div><h2>My role</h2><p>Everything: system design, Rust backend, Flutter app, schema, Docker and nginx.</p></div>
+<div><h2>Measured result</h2><p>4,000 people in one room, every message delivered, 99% within 51 ms on 2 vCPUs. <a href="#measured">How I measured</a></p></div>
+<div><h2>Hardest part</h2><p>Deciding presence from GPS that drifts and can be spoofed.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#flow">Joining, step by step</a></li><li><a href="#data">Data model</a></li><li><a href="#fail">When things break</a></li>
+<li><a href="#measured">Measured</a></li>
+<li class="full-only"><a href="#decisions">Decisions</a></li><li><a href="#next">At a million users</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#flow">Joining, step by step</a></li>
+<li><a href="#data">Data model</a></li>
+<li><a href="#fail">When things break</a></li>
+<li><a href="#measured">Measured</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">At a million users</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">Group chats outlive the places that created them. The people at a concert, a campus canteen or a hackathon floor share a moment, then a group chat drags on for months with half of them gone. I wanted the opposite: a room that exists only for the people standing in it, with no names and no history of where you've been.</p>
+<p class="p">That gives one hard requirement. If presence decides access, then a modified app must not be able to claim it is somewhere it isn't. Everything else in the design follows from that.</p>
+<p class="pull">The phone can be fast. The server has to be right.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<p class="p">One Rust binary holds the REST API, the WebSocket hub and two background workers. The first version runs as three containers: nginx, the API and Postgres. Every box below is a real module in the repo.</p>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Clients</div><div class="tier-c"><div class="node c-mob"><b>Flutter app</b>Android, iOS, web, desktop. Checks the fence on the phone for quick feedback.</div></div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS and WebSocket</div>
+<div class="tier"><div class="tier-l">Edge</div><div class="tier-c"><div class="node"><b>nginx</b>TLS termination, reverse proxy</div></div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>one tokio process</div>
+<div class="tier"><div class="tier-l">Axum API</div><div class="tier-c">
+<div class="node c-be"><b>Auth</b>device identity, JWT and refresh tokens</div>
+<div class="node c-be"><b>Spaces</b>create, discover, join, invite</div>
+<div class="node c-be"><b>Chat</b>REST to send, one WebSocket per Space to receive</div>
+<div class="node hot"><b>Geofence engine</b>pure functions, unit tested</div>
+<div class="node"><b>Room fan-out</b>tokio broadcast, 256 events per room</div>
+<div class="node"><b>Moderation worker</b>mpsc queue of 256, flags or hides</div>
+<div class="node"><b>Expiry worker</b>runs every 30 s, ends grace sessions</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>SQLx, pool of 10 connections</div>
+<div class="tier"><div class="tier-l">Data</div><div class="tier-c">
+<div class="node c-data"><b>PostgreSQL 16</b>identity and activity schemas, 8 migrations</div>
+<div class="node dash"><b>Redis</b>reserved in Docker Compose, not used yet</div>
+</div></div>
+<figcaption>Red outline: the hard part, drawn in full in section 03. 19 endpoints across auth, spaces, chat and geofence.</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">GPS lies. The engine has to decide anyway.</h2>
+<p class="p">A phone lying on a table reports positions that wander by tens of metres, and a spoofing app can report anything at all. Every location fix goes through six pure functions. Each one is unit tested on its own, and the numbers below are the real constants from the code.</p>
+<figure class="fig">
+<div class="pipe">
+<div class="step"><b>1 Validate</b>lat/lon in range, accuracy finite and not negative</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>2 Spoof check</b>mock-location flag, over 500 m in 5 s, over 200 km/h<small>fails: Rejected</small></div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>3 Smooth</b>median of this fix and the last three</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>4 Effective radius</b>r + min(accuracy, 35 m)<small>accuracy over 75 m: LowAccuracy</small></div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>5 Hysteresis</b>enter at r, exit past r + 20 m, after 3 outside readings</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-be"><b>6 Lifecycle</b>Inside, NearBoundary, GracePeriod or Outside</div>
+</div>
+<figcaption>validate_with_history(geofence, fix, history) in apps/backend/src/geofence/validator.rs</figcaption>
+</figure>
+<p class="p">Step 5 is where most of the thinking went. With a single threshold, someone standing at the edge of a room flips between inside and outside every few seconds. The engine uses <span class="term" tabindex="0">hysteresis<span class="tip" role="tooltip">Using a different threshold to leave than to enter, so a value hovering at the line doesn't flip back and forth.</span></span>: you are in at 100 m, but you are only out past 120 m, and only after three readings in a row agree.</p>
+<div class="code">
+<p>apps/backend/src/geofence/hysteresis.rs</p>
+<pre>pub const EXIT_BUFFER_METERS: f64 = 20.0;
+pub const REQUIRED_OUTSIDE_READINGS: usize = 3;
+
+pub fn buffered_outside_decision(
+    raw: GeofenceDecision,
+    consecutive_outside: usize,
+) -&gt; (GeofenceDecision, usize) {
+    match raw {
+        Outside =&gt; {
+            let next = consecutive_outside + 1;
+            if next &gt;= REQUIRED_OUTSIDE_READINGS {
+                (Outside, next)
+            } else {
+                (NearBoundary, next)
+            }
+        }
+        Inside | NearBoundary =&gt; (raw, 0),
+        _ =&gt; (raw, consecutive_outside),
+    }
+}</pre>
+</div>
+<div class="full-only">
+<h3 class="h3">Why a median and not an average</h3>
+<p class="p">One bad fix 200 m away drags an average far off and kicks the user out of the room. The median of four readings simply ignores a single spike.</p>
+<h3 class="h3">Why pure functions</h3>
+<p class="p">There is no database, clock or network inside the engine. That makes every rule a fast unit test, and the same rules are mirrored in Dart so the phone can show the right state before the server answers.</p>
+<h3 class="h3">The session lifecycle</h3>
+<figure class="fig">
+<div class="pipe">
+<div class="step"><b>Joining</b>first fix</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-mob"><b>Inside</b>can read and post</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-be"><b>NearBoundary</b>drifting at the edge</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#D7361F" stroke-width="2.4"></path></svg></div>
+<div class="step" style="background: #FFE3DD; border-color: #D7361F"><b>GracePeriod</b>3 outside readings, 120 s to come back</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ai"><b>Expired</b>by the worker</div>
+</div>
+<figcaption>Coming back inside before the grace timer runs out returns the session to Inside.</figcaption>
+</figure>
+</div>
+</section>
+
+<div class="full-only">
+<section id="flow" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">Joining a Space, step by step</h2>
+<p class="p">What happens between the tap and the first message, read from join_space in spaces.rs.</p>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span class="c-mob">Phone</span>to<span class="c-be">API</span></div><p>POST /spaces/:id/join with latitude, longitude and accuracy.</p></div></div>
+<div class="seq-r"><span class="seq-n">2</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">Postgres</span></div><p>Load the Space: centre, radius, visibility. Private Spaces need a valid invite code.</p></div></div>
+<div class="seq-r"><span class="seq-n">3</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">Postgres</span></div><p>Is there already an active or grace session? If so, reactivate it and return.</p></div></div>
+<div class="seq-r"><span class="seq-n">4</span><div><div class="who"><span class="c-be">API</span>to<span>Geofence engine</span></div><p>validate(fence, fix). Only Inside or NearBoundary may join; anything else gets 403.</p></div></div>
+<div class="seq-r hot"><span class="seq-n" style="background: #D7361F">5</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">Postgres</span></div><p>INSERT the session ON CONFLICT DO UPDATE, RETURNING (xmax = 0) to learn whether it was a new row.</p></div></div>
+<div class="seq-r"><span class="seq-n">6</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">Postgres</span></div><p>Only if it was new: member_count + 1.</p></div></div>
+<div class="seq-r"><span class="seq-n">7</span><div><div class="who"><span class="c-be">API</span>to<span class="c-mob">Phone</span></div><p>The session: a random anonymous name and an expiry time.</p></div></div>
+</div>
+<div class="note">
+<h3>Step 5: why xmax = 0</h3>
+<p>Two taps on Join can arrive at the same moment. The <span class="term" tabindex="0">upsert<span class="tip" role="tooltip">Insert a row, or update it if it already exists, in one statement.</span></span> lets Postgres pick one winner, and only a brand-new row has xmax = 0. So the API counts the member exactly once without taking a lock.</p>
+</div>
+</section>
+
+<section id="data" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">Data model</h2>
+<p class="p">Two schemas: identity for who, activity for what happens. The rules that must hold under concurrent requests live in the database as partial unique indexes, not in Rust.</p>
+<div class="cards">
+<div class="card"><h4 class="c-be">identity.users</h4><pre>id uuid
+device_id_hash text, unique</pre><p>HMAC-SHA256 of the device ID. Migration 0008 backfilled old rows.</p></div>
+<div class="card"><h4 class="c-be">identity.refresh_tokens</h4><pre>token_hash, user_id
+expires_at, revoked_at</pre><p>Only the hash is stored, so a leaked table can't mint sessions.</p></div>
+<div class="card"><h4 class="c-data">activity.spaces</h4><pre>created_by, latitude, longitude
+radius_meters 1–300 (CHECK)
+archived_at</pre><p class="red">Unique: one active Space per creator.</p></div>
+<div class="card"><h4 class="c-data">activity.sessions</h4><pre>user_id, space_id, anonymous_id
+status active | grace | expired
+expires_at</pre><p class="red">Unique: one anonymous name per Space while not expired.</p></div>
+<div class="card"><h4 class="c-data">activity.messages</h4><pre>space_id, created_at, anonymous_id
+moderation_status</pre><p>Index (space_id, created_at DESC) serves chat history.</p></div>
+<div class="card"><h4 class="c-data">location_validation_events</h4><pre>distance_bucket, accuracy_bucket
+precise_location_expires_at</pre><p>Migration 0007 replaced raw coordinates with buckets. Precise values expire.</p></div>
+</div>
+</section>
+
+<section id="fail" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">When things break</h2>
+<p class="p">Read from the code, not assumed. The last column is what I would add next.</p>
+<div class="rows">
+<div class="rows-h r3"><span>If</span><span>What happens today</span><span>What I would add</span></div>
+<div class="row r3"><span data-l="If"><b>Postgres is unreachable</b></span><span data-l="What happens today">Requests return 500, but each can wait up to 30 s (sqlx's default) for a connection first.</span><span data-l="What I would add">A 2 s acquire timeout and a readiness check, so it fails fast.</span></div>
+<div class="row r3"><span data-l="If"><b>A phone's socket drops</b></span><span data-l="What happens today">The app reconnects with backoff: 0.5 s, doubling up to 8 s.</span><span data-l="What I would add">Missed events aren't replayed: fetch history since the last message id.</span></div>
+<div class="row r3"><span data-l="If"><b>A subscriber falls behind</b></span><span data-l="What happens today">Each room buffers 256 events; a lagging socket skips what it missed.</span><span data-l="What I would add">Send that client a resync event.</span></div>
+<div class="row r3"><span data-l="If"><b>Moderation backs up</b></span><span data-l="What happens today">The queue holds 256 jobs; when it is full, sending waits. Backpressure, not data loss.</span><span data-l="What I would add">Queue depth as a metric, with an alert.</span></div>
+<div class="row r3"><span data-l="If"><b>The API restarts</b></span><span data-l="What happens today">Room channels vanish from memory; sessions live in Postgres, so clients reconnect and carry on.</span><span data-l="What I would add">Fan-out across instances (section 09).</span></div>
+<div class="row r3"><span data-l="If"><b>Someone walks away</b></span><span data-l="What happens today">Three outside readings, 120 s of grace, then the 30 s worker expires the session.</span><span data-l="What I would add">Working as designed.</span></div>
+</div>
+</section>
+</div>
+
+<section id="measured" class="sec">
+<p class="sec-n">07</p>
+<h2 class="h2">Measured, not claimed</h2>
+<p class="p">I load-tested the real backend. Every number links to a raw output file. Read the machine line first: these are lower bounds, because the load generator shared two CPUs with the server and the database.</p>
+<div class="machine">2 vCPU Xeon 2.1 GHz, 7 GB RAM. Server, PostgreSQL 16 and load generator on one box. Release build, no TLS. 10,001 Spaces, ~130,000 messages. oha 1.16 and my own Rust WebSocket client. 5 s warm-up, 30 s measured.</div>
+<div class="stats">
+<div class="stat"><b>79,860/s</b><span>messages delivered to 4,000 people in one room; every one arrived, 99% within 51 ms</span><i>raw/ws_4000subs_20mps.txt</i></div>
+<div class="stat"><b>0.2 µs</b><span>per geofence decision, about 5 million a second on one core (median of 5 runs)</span><i>engine.txt</i></div>
+<div class="stat"><b>1,241/s</b><span>location checks over HTTP, each with 2 reads and 2 writes, 0 errors</span><i>raw/validate_fixed.txt</i></div>
+<div class="stat"><b>71×</b><span>faster Space discovery after load testing: 80 to 5,710 requests a second</span><i>raw/discover_10k*.txt</i></div>
+</div>
+<h3 class="h3">Where it bends</h3>
+<p class="p" style="font-size: 16.5px"><span class="term" tabindex="0">p99<span class="tip" role="tooltip">99 out of 100 messages arrived faster than this.</span></span> delivery time by room size, one room, 20 messages a second. Every message was delivered at every size.</p>
+<div class="bars" role="img" aria-label="p99 delivery time: 100 people 6.6 ms, 1,000 people 19.6 ms, 2,000 people 25.3 ms, 4,000 people 50.7 ms, 8,000 people 196 ms">
+<div class="bar"><span>100</span><div><div style="width: 3.4%; min-width: 6px; background: #1FA67A"></div></div><span>6.6 ms</span></div>
+<div class="bar"><span>1,000</span><div><div style="width: 10%; background: #1FA67A"></div></div><span>19.6 ms</span></div>
+<div class="bar"><span>2,000</span><div><div style="width: 12.9%; background: #1FA67A"></div></div><span>25.3 ms</span></div>
+<div class="bar"><span>4,000</span><div><div style="width: 25.9%; background: #E0A100"></div></div><span>50.7 ms</span></div>
+<div class="bar"><span>8,000</span><div><div style="width: 100%; background: #D7361F"></div></div><span>196 ms</span></div>
+</div>
+<h3 class="h3">What load testing found</h3>
+<div class="rows">
+<div class="rows-h r3"><span>Found</span><span>Why</span><span>Status</span></div>
+<div class="row r3"><span data-l="Found"><b>Location checks failed every time</b></span><span data-l="Why">A Postgres enum was read into a Rust String, so /geofence/validate returned 500 after writing. One cast fixed it.</span><span data-l="Status">Fixed, then re-measured</span></div>
+<div class="row r3"><span data-l="Found"><b>Discovery read every Space</b></span><span data-l="Why">It filtered by distance in Rust after loading the whole table. A bounding box on the existing index made it 71× faster, with identical results.</span><span data-l="Status">Fixed, then re-measured</span></div>
+<div class="row r3"><span data-l="Found"><b>History showed the oldest messages</b></span><span data-l="Why">Ascending order with LIMIT 100 meant a busy room never showed new history.</span><span data-l="Status">Fixed, then re-measured</span></div>
+</div>
+<div class="links"><a class="btn btn-dark" href="https://github.com/AyushPandey510/anonymous">Read the source on GitHub</a></div>
+</section>
+
+<div class="full-only">
+<section id="decisions" class="sec">
+<p class="sec-n">08</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>The server decides presence</b></span><span data-l="Over">Trusting the app</span><span data-l="Because">A modified app can't claim to be in a room it isn't.</span><span data-l="It costs">A round trip and a write per check.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Rust and Axum on tokio</b></span><span data-l="Over">Node and Express</span><span data-l="Because">API, sockets and workers in one memory-safe binary; SQL checked at compile time.</span><span data-l="It costs">Slower to iterate on early.</span></div>
+<div class="row r4"><span data-l="I chose"><b>In-process broadcast per room</b></span><span data-l="Over">Redis pub/sub on day one</span><span data-l="Because">No extra infrastructure for one instance.</span><span data-l="It costs">One instance only; measured knee at 4,000 to 8,000 per room.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Moderation on a queue</b></span><span data-l="Over">Moderating inline</span><span data-l="Because">Sending never waits on the classifier.</span><span data-l="It costs">A message may show briefly before it is hidden.</span></div>
+<div class="row r4"><span data-l="I chose"><b>HMAC-hashed device IDs</b></span><span data-l="Over">Storing raw IDs</span><span data-l="Because">A database leak exposes no device identifiers.</span><span data-l="It costs">Rotating the secret means re-hashing.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Partial unique indexes</b></span><span data-l="Over">Checks in Rust</span><span data-l="Because">Two simultaneous joins can't both win.</span><span data-l="It costs">Rules split across SQL and Rust.</span></div>
+</div>
+</section>
+
+<section id="next" class="sec">
+<p class="sec-n">09</p>
+<h2 class="h2">At a million users, I would change this</h2>
+<div class="cards">
+<div class="card"><h4>Next 1: fan out across instances</h4><p style="padding-top: 12px">Past the measured knee: Redis pub/sub or NATS per room, so any instance can serve any socket.</p></div>
+<div class="card"><h4>Next 2: real spatial indexing</h4><p style="padding-top: 12px">The bounding box gave 71×. PostGIS and a GiST index come next, for any fence shape.</p></div>
+<div class="card"><h4>Next 3: location write volume</h4><p style="padding-top: 12px">Batch validation events and partition them by day.</p></div>
+<div class="card"><h4>Next 4: smarter moderation</h4><p style="padding-top: 12px">A trained classifier behind the same queue, plus per-device rate limits.</p></div>
+</div>
+<h3 class="h3">Questions I'm ready for</h3>
+<div class="q">
+<p>Two people join the last slot at the same moment. Who wins?</p>
+<p>How do you stop a GPS spoofing app?</p>
+<p>What breaks first when you run three API instances?</p>
+<p>Why not let the phone decide if it's inside?</p>
+</div>
+</section>
+</div>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/pdf-qa-rag"><span>Previous, S-09</span><b>PDF-QA RAG</b></a>
+<a class="nv" href="/work/swiftshare" style="text-align: right"><span>Next, S-02</span><b>SwiftShare</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Questions about this design are welcome; I'd enjoy walking through it.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

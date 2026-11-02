@@ -1,0 +1,198 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-04 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-04, serverless, solo build</p>
+<h1 class="title">Counter Drop</h1>
+<p class="dek">A print-shop queue that replaces “just send it on WhatsApp”.</p>
+<div class="meta">
+<span class="chip">8 min read</span>
+<span class="chip">Go</span>
+<span class="chip">AWS Lambda</span>
+<span class="chip">DynamoDB</span>
+<span class="chip">React PWA</span>
+<span class="chip">CDK</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/counter-drop">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>Print shops take files over WhatsApp, lose track of the queue, and keep customers' documents forever.</p></div>
+<div><h2>My role</h2><p>Everything: requirements, Go API, DynamoDB design, React PWA, AWS stack in CDK.</p></div>
+<div><h2>Result</h2><p>One Go codebase that runs in Docker for development and as four Lambda functions on AWS, with 52 Go tests.</p></div>
+<div><h2>Hardest part</h2><p>A live queue, daily tokens and timed file deletion on DynamoDB, with no server to keep state in.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#flow">A job, start to finish</a></li><li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#flow">A job, start to finish</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">At every print and xerox shop near my college, the routine is the same: you message your file to the owner's personal WhatsApp, stand around asking whether it's done, and your Aadhaar scan stays on a stranger's phone indefinitely.</p>
+<p class="p">Counter Drop replaces that with a QR code on the counter. You scan it, upload from your phone's browser, see the price and wait before you send, and get a token like A-07. Staff work from a live queue board. Ten minutes after you collect, your files are deleted and you get a deletion receipt.</p>
+<p class="pull">The token is the hero. Everything else gets out of its way.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<p class="p">On AWS, nothing runs between requests. CloudFront serves the PWA, API Gateway sends every request to Lambda, and DynamoDB is the single source of truth. Four Lambda functions come from one Go binary, which picks its role from the CD_RUNTIME environment variable.</p>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Clients</div><div class="tier-c">
+<div class="node c-web"><b>Customer PWA</b>scan QR, upload, price, token, live ticket. English, Hindi, Marathi.</div>
+<div class="node c-web"><b>Shop board</b>staff PIN sign-in, claim, ready, collected, undo</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS and WebSocket</div>
+<div class="tier"><div class="tier-l">AWS edge</div><div class="tier-c">
+<div class="node c-ship"><b>CloudFront and Route 53</b>serves the PWA from S3, fronts the API</div>
+<div class="node c-ship"><b>API Gateway</b>HTTP API and WebSocket API</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>one Go binary, four roles</div>
+<div class="tier"><div class="tier-l">Lambda (Go)</div><div class="tier-c">
+<div class="node c-be"><b>lambda-api</b>the HTTP API, OpenAPI-first</div>
+<div class="node c-be"><b>lambda-ws</b>socket connect with a ticket, heartbeat</div>
+<div class="node c-be hot"><b>lambda-push</b>DynamoDB stream to open sockets</div>
+<div class="node c-be"><b>lambda-sweeper</b>file deletion, every minute</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>AWS SDK v2</div>
+<div class="tier"><div class="tier-l">Data and ops</div><div class="tier-c">
+<div class="node c-data hot"><b>DynamoDB, one table</b>PK and SK, 4 sparse indexes, TTL, stream on</div>
+<div class="node c-data"><b>S3</b>uploaded files, never public</div>
+<div class="node"><b>EventBridge</b>triggers the sweeper every minute</div>
+<div class="node"><b>CloudWatch and SNS</b>5 alarms by email: API errors, 5xx, sweeper failing, push errors, throttling</div>
+</div></div>
+<figcaption>deploy/cdk/lib/counter-drop-stack.ts. Locally the same code runs as one server with DynamoDB Local, disk storage and an in-process hub.</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">A live queue with no server to remember it</h2>
+<p class="p">A queue sounds like a list in memory. On Lambda there is no memory between requests, so every piece of state has to live in DynamoDB, be readable in one cheap query, and change safely when two staff members tap at once. I designed the table around the questions the app asks, not around entities.</p>
+<div class="rows">
+<div class="rows-h r3"><span>Question the app asks</span><span>Key</span><span>How it's answered</span></div>
+<div class="row r3"><span data-l="Question the app asks"><b>What's on the shop board?</b></span><span data-l="Key"><code>GSI1 S#shop#OPEN</code></span><span data-l="How it's answered">Queued, printing and ready jobs, sorted by when they joined. One query.</span></div>
+<div class="row r3"><span data-l="Question the app asks"><b>What was done today?</b></span><span data-l="Key"><code>GSI2 S#shop#D#day</code></span><span data-l="How it's answered">Every submitted job for one business day.</span></div>
+<div class="row r3"><span data-l="Question the app asks"><b>What's the next token?</b></span><span data-l="Key"><code>TOK#day#lane</code></span><span data-l="How it's answered">An atomic ADD on a counter per shop, day and lane. Two taps can't get the same number.</span></div>
+<div class="row r3"><span data-l="Question the app asks"><b>Which files are due for deletion?</b></span><span data-l="Key"><code>GSI4 DUE</code></span><span data-l="How it's answered">Jobs sorted by their next deletion time; the sweeper reads only what's due.</span></div>
+<div class="row r3"><span data-l="Question the app asks"><b>Is this name or link already taken?</b></span><span data-l="Key"><code>SLUG# and NAME#</code></span><span data-l="How it's answered">Guard items written with a condition, so uniqueness holds without a transaction table.</span></div>
+</div>
+<p class="p" style="margin-top: 24px">Indexes are <span class="term" tabindex="0">sparse<span class="tip" role="tooltip">An item only appears in the index when it has that index's key, so finished jobs drop out on their own.</span></span>: a job leaves the board index the moment it is collected, so the board query never grows with history.</p>
+<div class="full-only">
+<div class="code">
+<p>api/internal/store/ddbstore/jobs.go, nextToken</p>
+<pre>Key:              key("S#"+shopID, "TOK#"+day+"#"+lane),
+UpdateExpression: aws.String("ADD #n :one SET #t = :ttl"),</pre>
+</div>
+<h3 class="h3">Live updates without a server</h3>
+<figure class="fig">
+<div class="pipe">
+<div class="step c-web"><b>Staff taps Ready</b>lambda-api updates the job</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-data"><b>DynamoDB stream</b>emits the change</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>lambda-push</b>turns it into queue.changed</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ship"><b>API Gateway</b>pushes to the open sockets</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-mob"><b>Customer's phone</b>ticket turns green</div>
+</div>
+<figcaption>The write path never talks to sockets, so a slow phone can't slow a staff tap.</figcaption>
+</figure>
+</div>
+</section>
+
+<div class="full-only">
+<section id="flow" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">A job, start to finish</h2>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span class="c-web">Customer</span></div><p>Scans the shop's QR poster and uploads from the phone browser. Sees price and wait time before sending.</p></div></div>
+<div class="seq-r hot"><span class="seq-n" style="background: #D7361F">2</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">DynamoDB</span></div><p>Atomically takes the next token for that lane and day, say A-07, and adds the job to the board.</p></div></div>
+<div class="seq-r"><span class="seq-n">3</span><div><div class="who"><span class="c-web">Staff</span>to<span class="c-be">API</span></div><p>Claims the job, prints, marks it ready. Every change is an event on the job's timeline.</p></div></div>
+<div class="seq-r"><span class="seq-n">4</span><div><div class="who"><span class="c-web">Staff</span></div><p>Marks it collected with cash or UPI. Undo and cancel-with-reason are always one tap away.</p></div></div>
+<div class="seq-r"><span class="seq-n">5</span><div><div class="who"><span>Sweeper</span>to<span class="c-data">S3</span></div><p>Ten minutes after pickup, deletes the files and records it; the customer's phone shows a deletion receipt.</p></div></div>
+</div>
+</section>
+
+<section id="decisions" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>One DynamoDB table</b></span><span data-l="Over">A table per entity</span><span data-l="Because">Every screen is one query; pay per request at shop scale.</span><span data-l="It costs">Access patterns must be designed up front.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Lambda behind API Gateway</b></span><span data-l="Over">An always-on container</span><span data-l="Because">A shop is idle most of the day; idle should cost nothing.</span><span data-l="It costs">Cold starts and a 15-minute limit per run.</span></div>
+<div class="row r4"><span data-l="I chose"><b>One Go binary, four roles</b></span><span data-l="Over">Four codebases</span><span data-l="Because">Shared domain code and tests; the same code runs locally.</span><span data-l="It costs">A slightly larger binary per function.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Stream-driven pushes</b></span><span data-l="Over">Pushing from the API</span><span data-l="Because">Writes stay fast and every change is broadcast once.</span><span data-l="It costs">A second or so of stream delay.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Delete after pickup</b></span><span data-l="Over">Keeping files</span><span data-l="Because">Customers' ID scans shouldn't outlive the job.</span><span data-l="It costs">No reprints after ten minutes.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>Prepay with UPI</h4><p>Planned for the next release: pay while uploading, so the counter only hands over prints.</p></div>
+<div class="card"><h4>A Windows print agent</h4><p>Send jobs straight to the shop's printer instead of downloading them at the desk.</p></div>
+<div class="card"><h4>Phone OTP and self-signup</h4><p>Let a new shop set itself up without me creating its first staff link.</p></div>
+<div class="card"><h4>Load-test the board</h4><p>Measure stream-to-phone delay at rush hour before a second shop joins.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/life-engine"><span>Previous, S-03</span><b>Life Engine AI</b></a>
+<a class="nv" href="/work/phisguard" style="text-align: right"><span>Next, S-05</span><b>PhisGuard</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. If you run a shop and want to try it, say hello.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

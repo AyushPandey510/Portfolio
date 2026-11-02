@@ -1,0 +1,219 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-03 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-03, AI and full-stack, solo build</p>
+<h1 class="title">Life Engine AI</h1>
+<p class="dek">An AI you talk to as the person you're working to become. It knows your goals, your habits and your documents.</p>
+<div class="meta">
+<span class="chip">7 min read</span>
+<span class="chip">FastAPI</span>
+<span class="chip">React, TypeScript</span>
+<span class="chip">Groq, Llama 3.1</span>
+<span class="chip">FAISS</span>
+<span class="chip">PostgreSQL, Redis</span>
+<span class="chip">Celery</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/LifeEngine">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>A general chatbot knows nothing about you, so its career advice starts from zero every time.</p></div>
+<div><h2>My role</h2><p>Everything: FastAPI backend, AI layer, document parsing, React app, deployment on Vercel and Render.</p></div>
+<div><h2>Result</h2><p>In production with JWT auth, rate limiting, health checks, and data export and deletion for every user.</p></div>
+<div><h2>Hardest part</h2><p>Choosing which of your documents belong in each prompt, cheaply enough to do on every message.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#docs">Teaching it your documents</a></li><li><a href="#fail">When things break</a></li><li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#docs">Teaching it your documents</a></li>
+<li><a href="#fail">When things break</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">When I asked a chatbot whether to take an internship or keep building projects, it gave the same balanced answer it would give anyone. It didn't know what I'd already built, what I was good at or what I'd said I wanted.</p>
+<p class="p">Life Engine starts from you. You set goals, habits and a few personality traits, and upload your résumé, cover letters and certificates. Then you talk to your future self: an AI that answers with your context, and can compare two decisions side by side.</p>
+<p class="pull">Advice is only as good as what it knows about you.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<p class="p">A React app talks to a FastAPI service. Postgres holds the durable data, Redis holds counters and cache, Celery runs slow work in the background, and each user gets their own FAISS index file.</p>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Client</div><div class="tier-c">
+<div class="node c-web"><b>React and TypeScript</b>Vite, Zustand. Chat, profile, decisions, insights. On Vercel.</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS, JWT access and refresh tokens</div>
+<div class="tier"><div class="tier-l">FastAPI on Render</div><div class="tier-c">
+<div class="node c-be"><b>Middleware</b>security headers, Redis rate limit of 30 a minute</div>
+<div class="node c-be"><b>Routers</b>auth, chat, decisions, documents, insights, profile, users</div>
+<div class="node c-ai hot"><b>AI service</b>context selection, Groq streaming, safe fallback</div>
+<div class="node c-be"><b>Document service</b>PDF, DOCX, TXT, MD, JSON; skills and sections</div>
+<div class="node c-ai"><b>Memory service</b>per-user FAISS index, cosine similarity</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>SQLAlchemy async, redis-py, Celery broker</div>
+<div class="tier"><div class="tier-l">Data and workers</div><div class="tier-c">
+<div class="node c-data"><b>PostgreSQL</b>users, profiles, conversations, interactions, decisions, documents; 5 Alembic migrations</div>
+<div class="node c-data"><b>Redis</b>rate-limit counters, cache, Celery broker</div>
+<div class="node c-data"><b>FAISS files</b>one index per user on disk</div>
+<div class="node"><b>Celery workers</b>embeddings and scheduled jobs</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS</div>
+<div class="tier"><div class="tier-l">AI providers</div><div class="tier-c">
+<div class="node c-ai"><b>Groq</b>llama-3.1-8b-instant for chat</div>
+<div class="node c-ai"><b>OpenAI</b>text-embedding-3-small for vectors</div>
+</div></div>
+<figcaption>Red outline: the hard part, drawn in section 03.</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">What goes into each prompt</h2>
+<p class="p">Sending every document with every message is slow, costly and drowns the question. Sending none makes the AI generic again. For each message the AI service scores every document you've uploaded and only injects the ones that clear a threshold.</p>
+<figure class="fig">
+<div class="pipe">
+<div class="step"><b>Message</b>saved to the conversation</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-data"><b>Load</b>history and your documents</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>Score</b>intent triggers and term overlap, 0 to 1</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>Keep</b>documents scoring 0.15 or more</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ai"><b>Generate</b>Groq streams the reply</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-data"><b>Save</b>reply, tokens and latency</div>
+</div>
+<figcaption>send_message in api/v1/chat.py and _score_relevance in services/ai_service.py</figcaption>
+</figure>
+<p class="p">The scorer takes two passes and keeps the higher score. The first looks for intent: a question about skills or experience lifts documents that actually have those sections. The second counts words the question shares with a document's skills, keywords and opening text.</p>
+<div class="full-only">
+<div class="code">
+<p>simplified from backend/app/services/ai_service.py</p>
+<pre>def _score_relevance(query, document) -&gt; float:
+    # Pass 1: intent triggers
+    for section, triggers in _INTENT_TRIGGERS.items():
+        if any(t in query_lower for t in triggers):
+            if section in ("skills", "experience", "education",
+                           "certifications", "projects"):
+                intent = 0.6 if signals.get(section) else 0.3
+            else:
+                intent = 0.5
+    # Pass 2: direct term overlap
+    matched = len(query_words &amp; all_doc_terms)
+    ...
+    return max(intent_score, overlap_score)</pre>
+</div>
+<div class="note">
+<h3>Where FAISS fits today</h3>
+<p>Uploaded documents are embedded into your own FAISS index, and the retrieval function is written. Chat doesn't call it yet; it uses the scorer above, which needs no extra API call per message and is easy to explain. Mixing in vector search is the first item in section 07.</p>
+</div>
+</div>
+</section>
+
+<div class="full-only">
+<section id="docs" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">Teaching it your documents</h2>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span class="c-web">App</span>to<span class="c-be">API</span></div><p>Upload a résumé, cover letter, certificate or note. Up to 5 MB.</p></div></div>
+<div class="seq-r"><span class="seq-n">2</span><div><div class="who"><span class="c-be">Document service</span></div><p>Check the type, then parse it: pypdf for PDF, python-docx for DOCX, plain decoding for text. Keep the first 20,000 characters.</p></div></div>
+<div class="seq-r hot"><span class="seq-n" style="background: #D7361F">3</span><div><div class="who"><span class="c-be">Document service</span></div><p>Extract signals: skills, experience, education, certifications, projects and keywords.</p></div></div>
+<div class="seq-r"><span class="seq-n">4</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">Postgres</span></div><p>Save the document and merge its signals into your profile.</p></div></div>
+<div class="seq-r"><span class="seq-n">5</span><div><div class="who"><span class="c-ai">Memory service</span>to<span class="c-data">FAISS</span></div><p>Embed the text in chunks, normalise the vectors and add them to your index, so inner product equals <span class="term" tabindex="0">cosine similarity<span class="tip" role="tooltip">How closely two vectors point the same way. 1 means the same meaning, 0 means unrelated.</span></span>.</p></div></div>
+</div>
+</section>
+
+<section id="fail" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">When things break</h2>
+<div class="rows">
+<div class="rows-h r3"><span>If</span><span>What happens</span><span>Why it's built this way</span></div>
+<div class="row r3"><span data-l="If"><b>The AI provider is down</b></span><span data-l="What happens">Chat returns a polite fallback and still saves the turn.</span><span data-l="Why it's built this way">A third-party outage shouldn't look like my outage.</span></div>
+<div class="row r3"><span data-l="If"><b>Redis is down</b></span><span data-l="What happens">Rate limiting is skipped and logged; requests carry on.</span><span data-l="Why it's built this way">Fail open: availability matters more than strict limits here.</span></div>
+<div class="row r3"><span data-l="If"><b>Embedding fails in production</b></span><span data-l="What happens">The error is raised and logged. Development falls back to a fixed mock vector.</span><span data-l="Why it's built this way">Never store fake vectors in real users' indexes.</span></div>
+<div class="row r3"><span data-l="If"><b>Anything else throws</b></span><span data-l="What happens">The database rolls back and the user gets a clean 500 message.</span><span data-l="Why it's built this way">No half-saved conversations.</span></div>
+</div>
+</section>
+
+<section id="decisions" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>Groq with Llama 3.1 8B</b></span><span data-l="Over">A larger hosted model</span><span data-l="Because">Fast, cheap replies that stream.</span><span data-l="It costs">Less depth on hard questions.</span></div>
+<div class="row r4"><span data-l="I chose"><b>One FAISS file per user</b></span><span data-l="Over">A shared vector database</span><span data-l="Because">Hard isolation; deleting a user deletes one file.</span><span data-l="It costs">Lives on one server's disk.</span></div>
+<div class="row r4"><span data-l="I chose"><b>A keyword scorer in chat</b></span><span data-l="Over">Vector search per message</span><span data-l="Because">No extra API call, and every choice is explainable.</span><span data-l="It costs">Misses synonyms.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Rate limit that fails open</b></span><span data-l="Over">Failing closed</span><span data-l="Because">A Redis blip shouldn't lock everyone out.</span><span data-l="It costs">No limits while Redis is down.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">07</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>Hybrid retrieval in chat</h4><p>Call the existing retrieve_memories() and merge its results with the keyword scores, so synonyms count.</p></div>
+<div class="card"><h4>Vectors in Postgres</h4><p>pgvector instead of files on disk, so memory survives redeploys and scales past one server.</p></div>
+<div class="card"><h4>Rate limit by user</h4><p>Key the limit on the signed-in user, not the X-Forwarded-For header, which a client can set.</p></div>
+<div class="card"><h4>Stream to the screen</h4><p>The backend already streams from Groq; passing it through would show the first words sooner.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/swiftshare"><span>Previous, S-02</span><b>SwiftShare</b></a>
+<a class="nv" href="/work/counter-drop" style="text-align: right"><span>Next, S-04</span><b>Counter Drop</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Happy to walk through the AI design in detail.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

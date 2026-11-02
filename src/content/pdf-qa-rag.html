@@ -1,0 +1,161 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-09 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-09, AI, solo build</p>
+<h1 class="title">PDF-QA RAG</h1>
+<p class="dek">Ask a PDF a question and get an answer from that PDF only, running entirely on your own machine.</p>
+<div class="meta">
+<span class="chip">4 min read</span>
+<span class="chip">Python, Flask</span>
+<span class="chip">MiniLM embeddings</span>
+<span class="chip">FAISS</span>
+<span class="chip">Ollama, Llama 3</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/PDF-QA-RAG-OLLAMA-llama3">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>Chatbots answer confidently from outside the document you gave them.</p></div>
+<div><h2>My role</h2><p>The whole pipeline: PDF parsing, chunking, embeddings, retrieval, prompt and a small web page.</p></div>
+<div><h2>Result</h2><p>Fully local: no API keys, no data leaves the laptop, and it says so when the answer isn't there.</p></div>
+<div><h2>Hardest part</h2><p>Stopping the model from filling gaps with things it already knows.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li><a href="#arch">How it works</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#arch">How it works</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">How it works</h2>
+<p class="p">This is <span class="term" tabindex="0">retrieval-augmented generation<span class="tip" role="tooltip">Find the most relevant passages first, then ask the language model to answer using only those passages.</span></span> in its smallest honest form: two pipelines, one run once per document and one run per question.</p>
+<figure class="fig">
+<h3>Once per document</h3>
+<div class="pipe">
+<div class="step"><b>Read</b>PyMuPDF, page by page</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>Chunk</b>500 characters, 100 overlap</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ai"><b>Embed</b>all-MiniLM-L6-v2</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-data"><b>Index</b>FAISS flat L2, saved to disk</div>
+</div>
+</figure>
+<figure class="fig">
+<h3>Once per question</h3>
+<div class="pipe">
+<div class="step c-web"><b>Ask</b>POST /ask from the page</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ai"><b>Embed</b>the question, same model</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>Retrieve</b>top 3 chunks; nothing if the best is too far</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ai"><b>Generate</b>Llama 3 on Ollama, strict prompt</div>
+</div>
+<figcaption>rag/ingest.py, retriever.py, generator.py and a Flask app.py</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">02, the hard part</p>
+<h2 class="h2">Teaching a model to say "I don't know"</h2>
+<p class="p">Language models would rather guess than stay quiet. There are two guards. Retrieval refuses first: if even the closest chunk is farther than 1.5 in embedding space, it returns nothing at all, so there is nothing to build an answer from. Then the prompt sets strict rules and a fixed sentence for when the answer isn't present.</p>
+<div class="code">
+<p>rag/retriever.py</p>
+<pre>distances, indices = index.search(np.array(query_embedding), k)
+results = [chunks[i] for i in indices[0]]
+
+# basic hallucination control
+if distances[0][0] &gt; 1.5:
+    return []</pre>
+</div>
+<div class="full-only">
+<div class="code">
+<p>rag/generator.py, the prompt</p>
+<pre>You are a strict question answering system.
+Answer ONLY from the given context.
+
+Rules:
+- Do NOT use outside knowledge
+- If answer is not present, say:
+"The answer is not available in the provided document."</pre>
+</div>
+<p class="p">Only the two best chunks go into the prompt. Fewer, closer passages give the model less room to wander.</p>
+</div>
+</section>
+
+<div class="full-only">
+<section id="decisions" class="sec">
+<p class="sec-n">03</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>Local Llama 3 on Ollama</b></span><span data-l="Over">A hosted API</span><span data-l="Because">Private documents stay private, and it's free.</span><span data-l="It costs">Needs a capable laptop; slower answers.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Fixed-size chunks with overlap</b></span><span data-l="Over">Splitting by meaning</span><span data-l="Because">Simple and predictable.</span><span data-l="It costs">Can cut a sentence in half.</span></div>
+<div class="row r4"><span data-l="I chose"><b>A flat FAISS index</b></span><span data-l="Over">An approximate index</span><span data-l="Because">Exact results; one document is small.</span><span data-l="It costs">Slows down on very large libraries.</span></div>
+<div class="row r4"><span data-l="I chose"><b>A distance cut-off</b></span><span data-l="Over">Always sending context</span><span data-l="Because">No context means no invented answer.</span><span data-l="It costs">A fixed threshold, tuned by hand.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>Cite the page</h4><p>Keep page numbers with each chunk and show them next to the answer.</p></div>
+<div class="card"><h4>Measure refusals</h4><p>A small question set with known answers, to tune the 1.5 cut-off with numbers instead of feel.</p></div>
+<div class="card"><h4>Chunk by meaning</h4><p>Split on sentences and headings so a chunk never starts mid-thought.</p></div>
+<div class="card"><h4>Stream the answer</h4><p>Show tokens as Llama 3 writes them, so a slow laptop feels faster.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/changeshare"><span>Previous, S-08</span><b>ChangeShare</b></a>
+<a class="nv" href="/work/space" style="text-align: right"><span>Back to the start, S-01</span><b>Space</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Small, honest RAG, ready to grow.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

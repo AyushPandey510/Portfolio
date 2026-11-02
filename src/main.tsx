@@ -1,12 +1,18 @@
 import { createRoot, hydrateRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
-import "@fontsource-variable/bricolage-grotesque/standard.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import "./index.css";
+import "./styles/motion.css";
 
 const root = document.getElementById("root")!;
+const app = (
+  <BrowserRouter>
+    <App />
+  </BrowserRouter>
+);
 
-// The production build pre-renders the page to static HTML (see scripts/prerender.mjs),
-// so search engines and AI crawlers read full content without running JavaScript.
-if (root.hasChildNodes()) hydrateRoot(root, <App />);
-else createRoot(root).render(<App />);
+// Production pages are prerendered per route (scripts/prerender.mjs), so
+// crawlers and AI assistants read full content without running JavaScript.
+if (root.hasChildNodes()) hydrateRoot(root, app);
+else createRoot(root).render(app);

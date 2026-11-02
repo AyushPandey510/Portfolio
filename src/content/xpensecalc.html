@@ -1,0 +1,189 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-06 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-06, mobile, solo build</p>
+<h1 class="title">XpenseCalc</h1>
+<p class="dek">Spending insights straight from your bank SMS. No bank login, and nothing leaves the phone.</p>
+<div class="meta">
+<span class="chip">6 min read</span>
+<span class="chip">Flutter, Dart</span>
+<span class="chip">Kotlin</span>
+<span class="chip">sqflite</span>
+<span class="chip">fl_chart</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/expense_calc">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>Tracking spending means typing in every expense, or giving an app your bank login.</p></div>
+<div><h2>My role</h2><p>Everything: Flutter app, the Kotlin SMS plugin, the parser, charts and PDF reports.</p></div>
+<div><h2>Result</h2><p>Reads 90 days of bank SMS on the device, turns them into transactions and charts, and works offline.</p></div>
+<div><h2>Hardest part</h2><p>Bank SMS has no standard format, and the same words can mean opposite things.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">My bank already tells me about every rupee I spend, one SMS at a time. The information is all there on my phone; it's just unreadable as a whole.</p>
+<p class="p">XpenseCalc reads those messages on the device, turns them into transactions, and shows where the money went: by day, by bank, debit against credit. You can add cash expenses by hand, keep wallets, and export a PDF report to share.</p>
+<p class="pull">Your bank already writes your expense diary. This app just reads it.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<p class="p">Everything runs on the phone. Flutter can't read SMS by itself, so a small Kotlin plugin reads the inbox and hands raw messages to Dart over a method channel.</p>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Android</div><div class="tier-c">
+<div class="node c-mob"><b>SmsPlugin (Kotlin)</b>queries the system SMS inbox for the last 90 days</div>
+<div class="node c-mob"><b>Permissions</b>asks for SMS access, handles "denied for good"</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>MethodChannel: getAllSms(days, limit)</div>
+<div class="tier"><div class="tier-l">Dart services</div><div class="tier-c">
+<div class="node c-be hot"><b>SmsService</b>an 8-stage parser that turns text into transactions</div>
+<div class="node c-be"><b>DatabaseService</b>sqflite, schema version 6</div>
+<div class="node c-be"><b>ThemeService</b>light and dark, remembered</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>widgets</div>
+<div class="tier"><div class="tier-l">Screens</div><div class="tier-c">
+<div class="node c-mob"><b>Home and transactions</b>daily totals, searchable list</div>
+<div class="node c-mob"><b>Analysis</b>fl_chart graphs, PDF report you can share</div>
+<div class="node c-mob"><b>Wallets and manual entry</b>for cash and anything without an SMS</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>on-device storage</div>
+<div class="tier"><div class="tier-l">Storage</div><div class="tier-c">
+<div class="node c-data"><b>SQLite</b>indexes on date, type and bank; a unique index stops duplicates</div>
+<div class="node c-data"><b>Shared preferences</b>settings and theme</div>
+</div></div>
+<figcaption>android/.../SmsPlugin.kt and lib/services/</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">Every bank writes its own language</h2>
+<p class="p">There is no standard for bank SMS. Offers look like transactions, failed payments look like successful ones, and one message can say both "debited" and "credited". So the parser is a funnel: each stage either passes the message on or rejects it with a named reason, which makes every miss debuggable.</p>
+<figure class="fig">
+<div class="pipe">
+<div class="step"><b>1 Bank?</b>sender and wording look like a bank</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>2 Not an offer</b>"up to Rs 500 cashback" is skipped</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>3 Not failed</b>failed or pending payments are skipped</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>4 Amount</b>ignoring balances and promo limits</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>5 Debit or credit</b>trust whichever word comes first</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-data"><b>6 Date and bank</b>several date formats, sender to bank</div>
+</div>
+<figcaption>parseSingleSms in lib/services/sms_service.dart, simplified from eight stages to six</figcaption>
+</figure>
+<div class="full-only">
+<h3 class="h3">The message that says both things</h3>
+<p class="p">Two real formats from Indian banks say debited and credited in the same message. Checking for "credited" first, the obvious approach, turns both of these payments into income:</p>
+<div class="sms">
+<div><p>Dr. from A/C XX1234 and Cr. to payee@upi</p><b>Debit: "Dr." comes first</b></div>
+<div><p>A/c debited Rs.250 &amp; credited to merchant</p><b>Debit: "debited" comes first</b></div>
+</div>
+<p class="p">Banks state the account holder's own action first and the other party's second. So when both words appear, the parser trusts whichever comes earliest.</p>
+<div class="code">
+<p>lib/services/sms_service.dart, _determineTransactionType</p>
+<pre>final creditMatch = RegExp(
+    r'\b(cr\.?|credited|deposited|received|refund)\b',
+    caseSensitive: false).firstMatch(body);
+final debitMatch = RegExp(
+    r'\b(dr\.?|debited|withdrawn|charged)\b',
+    caseSensitive: false).firstMatch(body);
+if (creditMatch != null &amp;&amp; debitMatch != null) {
+  return creditMatch.start &lt; debitMatch.start ? 'credit' : 'debit';
+}</pre>
+</div>
+<h3 class="h3">Reading the inbox twice shouldn't double your spending</h3>
+<p class="p">The app rescans the inbox every time it opens. A <span class="term" tabindex="0">unique index<span class="tip" role="tooltip">A database rule that refuses a second row with the same values in the chosen columns.</span></span> on sender, amount, date and type means a transaction that's already stored is simply skipped.</p>
+</div>
+</section>
+
+<div class="full-only">
+<section id="decisions" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>Parse SMS on the device</b></span><span data-l="Over">Bank account aggregators</span><span data-l="Because">No login, no third party, works offline.</span><span data-l="It costs">Android only; iOS doesn't let apps read SMS.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Named rule stages</b></span><span data-l="Over">A trained classifier</span><span data-l="Because">Every miss has a reason I can fix.</span><span data-l="It costs">A new bank format needs a new rule.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Local SQLite</b></span><span data-l="Over">A cloud backend</span><span data-l="Because">Private by default, instant, free to run.</span><span data-l="It costs">No sync between devices.</span></div>
+<div class="row r4"><span data-l="I chose"><b>A 90-day window</b></span><span data-l="Over">The whole inbox</span><span data-l="Because">A fast first launch.</span><span data-l="It costs">Older history needs manual entry.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>A test corpus</h4><p>Anonymised real messages per bank, with the expected result, so a parser change can't silently break one bank.</p></div>
+<div class="card"><h4>Merchant categories</h4><p>Group spending into food, travel and bills from the payee name, on the device.</p></div>
+<div class="card"><h4>Statement import</h4><p>Import PDF statements, so iPhone users and older history are covered too.</p></div>
+<div class="card"><h4>Optional encrypted backup</h4><p>Export an encrypted file to move data to a new phone without a server.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/phisguard"><span>Previous, S-05</span><b>PhisGuard</b></a>
+<a class="nv" href="/work/rustcart" style="text-align: right"><span>Next, S-07</span><b>RustCart API</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. If your bank's SMS breaks the parser, send it my way.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

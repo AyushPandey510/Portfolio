@@ -1,0 +1,188 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-05 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-05, security and ML, solo build</p>
+<h1 class="title">PhisGuard</h1>
+<p class="dek">A browser extension that scores the page you just opened from 0 to 100 for phishing risk, before you type anything.</p>
+<div class="meta">
+<span class="chip">6 min read</span>
+<span class="chip">Python, Flask</span>
+<span class="chip">Chrome MV3</span>
+<span class="chip">scikit-learn</span>
+<span class="chip">Docker</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/Phis_Shield">Read the source</a>
+<a class="btn btn-line" href="https://www.youtube.com/watch?v=phdc5xnySxg">Watch the demo</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>Phishing pages look right. People need a warning on the page itself, at the moment they arrive.</p></div>
+<div><h2>My role</h2><p>Everything: Flask API, risk model, email-text classifier, Chrome extension, admin dashboard.</p></div>
+<div><h2>Result</h2><p>One score from six signal groups, including Google Safe Browsing and VirusTotal, with a feedback loop for retraining.</p></div>
+<div><h2>Hardest part</h2><p>Turning noisy, partly missing signals into one number that's quick and doesn't cry wolf.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#ext">Inside the extension</a></li><li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#ext">Inside the extension</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">Most phishing checks happen in the inbox, but the damage happens on the page. By the time you're on a fake login screen the email is forgotten, and the page looks exactly like the real one.</p>
+<p class="p">PhisGuard sits in the browser. Each time a page finishes loading, the extension asks the API about the URL and shows a warning if the score is high. A separate comprehensive check also covers SSL, redirects, known breaches and the text of a suspicious email.</p>
+<p class="pull">Warn on the page, not in a report afterwards.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Browser</div><div class="tier-c">
+<div class="node c-web"><b>Service worker</b>listens for finished page loads, calls the API</div>
+<div class="node c-web"><b>Content script</b>shows the warning on the page</div>
+<div class="node c-web"><b>Popup</b>score, reasons, manual checks</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS, POST /check-url or /comprehensive-check</div>
+<div class="tier"><div class="tier-l">Flask API</div><div class="tier-c">
+<div class="node c-be"><b>Gateway</b>input validation, security headers, 50 requests a minute</div>
+<div class="node c-be"><b>URL checker</b>rules, Safe Browsing, VirusTotal</div>
+<div class="node c-be"><b>SSL and redirects</b>certificate checks, redirect chain</div>
+<div class="node c-be"><b>Breach checker</b>known breached passwords</div>
+<div class="node c-ai"><b>Email-text model</b>TF-IDF with Naive Bayes</div>
+<div class="node c-ai hot"><b>Risk scorer</b>weights every group into 0 to 100</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>outbound checks and model files</div>
+<div class="tier"><div class="tier-l">Outside and offline</div><div class="tier-c">
+<div class="node c-ship"><b>Google Safe Browsing</b>known malicious URLs</div>
+<div class="node c-ship"><b>VirusTotal</b>multi-engine URL reports</div>
+<div class="node c-data"><b>Model store</b>versioned models, PhishTank training data, user feedback</div>
+<div class="node"><b>Admin dashboard</b>analytics, events, model switch and retrain</div>
+</div></div>
+<figcaption>app.py and services/. Deployed with Docker and gunicorn on Railway.</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">Many weak signals, one honest number</h2>
+<p class="p">No single check is reliable. A missing certificate might be a lazy site, not a scam. A URL shortener might be a newsletter. Safe Browsing only knows about pages someone has already reported. So each group produces its own score, and the risk scorer combines them with fixed weights.</p>
+<div class="weights" role="img" aria-label="Weights: URL risk 35%, SSL 20%, redirects 15%, domain reputation 10%, breach history 10%, email text 10%">
+<div class="w"><span>URL risk</span><div><div style="width: 100%; background: #D7361F"></div></div><span>35%</span></div>
+<div class="w"><span>SSL</span><div><div style="width: 57%; background: #2447D6"></div></div><span>20%</span></div>
+<div class="w"><span>Redirects</span><div><div style="width: 43%; background: #2447D6"></div></div><span>15%</span></div>
+<div class="w"><span>Reputation</span><div><div style="width: 29%; background: #2447D6"></div></div><span>10%</span></div>
+<div class="w"><span>Breaches</span><div><div style="width: 29%; background: #2447D6"></div></div><span>10%</span></div>
+<div class="w"><span>Email text</span><div><div style="width: 29%; background: #2447D6"></div></div><span>10%</span></div>
+</div>
+<p class="p">Inside the URL group, rules add points for things phishers rely on: an IP address instead of a name (+25), a suspicious top-level domain (+20), a link shortener (+20), login-style keywords (+15), no HTTPS (+10). A Safe Browsing match adds 50, and a malicious VirusTotal verdict adds 70.</p>
+<div class="full-only">
+<div class="rows">
+<div class="rows-h r3"><span>Signal</span><span>Points</span><span>Why it matters</span></div>
+<div class="row r3"><span data-l="Signal"><b>Raw IP address in the URL</b></span><span data-l="Points">+25</span><span data-l="Why it matters">Real brands use names; throwaway servers often don't.</span></div>
+<div class="row r3"><span data-l="Signal"><b>Suspicious top-level domain</b></span><span data-l="Points">+20</span><span data-l="Why it matters">Cheap domains are popular for one-day campaigns.</span></div>
+<div class="row r3"><span data-l="Signal"><b>Link shortener</b></span><span data-l="Points">+20</span><span data-l="Why it matters">Hides the real destination until you click.</span></div>
+<div class="row r3"><span data-l="Signal"><b>Login or verify keywords</b></span><span data-l="Points">+15</span><span data-l="Why it matters">The page is asking for exactly what attackers want.</span></div>
+<div class="row r3"><span data-l="Signal"><b>Deep subdomains</b></span><span data-l="Points">+10</span><span data-l="Why it matters">paypal.com.secure-login.example hides the real domain at the end.</span></div>
+<div class="row r3"><span data-l="Signal"><b>Safe Browsing match</b></span><span data-l="Points">+50</span><span data-l="Why it matters">Someone has already reported it.</span></div>
+</div>
+<div class="note">
+<h3>Where machine learning fits today</h3>
+<p>The email-text classifier runs in every comprehensive check. A Random Forest for URLs is trained from PhishTank data and managed through admin endpoints (versions, switch, retrain), but the live URL score doesn't use it yet. Wiring it in is first in section 06.</p>
+</div>
+</div>
+</section>
+
+<div class="full-only">
+<section id="ext" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">Inside the extension</h2>
+<p class="p">An extension that calls an API on every page load can easily hammer it. The service worker filters before it asks anything.</p>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span class="c-web">Chrome</span>to<span class="c-web">Service worker</span></div><p>A page finishes loading, or a single-page app changes its URL.</p></div></div>
+<div class="seq-r"><span class="seq-n">2</span><div><div class="who"><span class="c-web">Service worker</span></div><p>Skip chrome://, about:, file:, data: and javascript: URLs, and anything that isn't a real domain.</p></div></div>
+<div class="seq-r hot"><span class="seq-n" style="background: #D7361F">3</span><div><div class="who"><span class="c-web">Service worker</span></div><p>Skip URLs checked recently, wait at least 2 s between checks, and answer from the local cache when it can.</p></div></div>
+<div class="seq-r"><span class="seq-n">4</span><div><div class="who"><span class="c-web">Service worker</span>to<span class="c-be">API</span></div><p>POST /check-url and get the score and the reasons behind it.</p></div></div>
+<div class="seq-r"><span class="seq-n">5</span><div><div class="who"><span class="c-web">Content script</span></div><p>Show a warning on the page when the risk is high.</p></div></div>
+</div>
+</section>
+
+<section id="decisions" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>Fixed, readable weights</b></span><span data-l="Over">One opaque model</span><span data-l="Because">Every warning can explain itself.</span><span data-l="It costs">Weights are tuned by hand.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Manifest V3 service worker</b></span><span data-l="Over">A persistent background page</span><span data-l="Because">Required by Chrome, light on memory.</span><span data-l="It costs">State must survive the worker sleeping.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Throttle and cache in the browser</b></span><span data-l="Over">Checking every navigation</span><span data-l="Because">Protects the API and the user's battery.</span><span data-l="It costs">A fast second visit uses an older verdict.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Naive Bayes for email text</b></span><span data-l="Over">A large language model</span><span data-l="Because">Tiny, fast and cheap to retrain from feedback.</span><span data-l="It costs">Misses clever wording.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>Use the URL model live</h4><p>Blend the Random Forest's probability into the URL score instead of only managing it from the admin side.</p></div>
+<div class="card"><h4>Passwords never leave the browser</h4><p>Switch breach checks to k-anonymity: send the first 5 characters of a hash and compare the rest locally.</p></div>
+<div class="card"><h4>Run outside checks in parallel</h4><p>Safe Browsing, VirusTotal, SSL and redirects run one after another; running them together cuts the wait.</p></div>
+<div class="card"><h4>Fewer false alarms</h4><p>An allowlist of the most-visited domains, so big sites with long URLs don't get flagged.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/counter-drop"><span>Previous, S-04</span><b>Counter Drop</b></a>
+<a class="nv" href="/work/xpensecalc" style="text-align: right"><span>Next, S-06</span><b>XpenseCalc</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Security people: I'd love your critique.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

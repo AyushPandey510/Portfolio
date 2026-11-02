@@ -1,0 +1,194 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-08 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-08, developer tools and security, solo build</p>
+<h1 class="title">ChangeShare</h1>
+<p class="dek">Hand your uncommitted Git changes to the person next to you. No push, no branch, no cloud.</p>
+<div class="meta">
+<span class="chip">6 min read</span>
+<span class="chip">TypeScript, Node.js 22</span>
+<span class="chip">Git</span>
+<span class="chip">CPace</span>
+<span class="chip">AES-256-GCM</span>
+<span class="chip">VS Code</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://github.com/AyushPandey510/changeshare">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>Showing a teammate half-finished work means a throwaway commit, a push and a branch someone forgets to delete.</p></div>
+<div><h2>My role</h2><p>Everything: the CLI, the transfer protocol, the safety checks and the VS Code extension.</p></div>
+<div><h2>Result</h2><p>A one-time code, sender approval, an encrypted LAN transfer, a preview before applying, and undo.</p></div>
+<div><h2>Hardest part</h2><p>Protecting the transfer with a short code you say out loud, without ever sending that code.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#git">Not touching your Git</a></li><li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#git">Not touching your Git</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">"Can you look at what I've got so far?" is a normal question in a lab or an office. Answering it with Git means a commit called "wip", a push, a branch, and a cleanup that never happens. Pasting a diff into chat loses binary files and leaks whatever secrets were in it.</p>
+<p class="p">ChangeShare sends your working changes, a stash or a commit straight to another computer on the same network. The receiver sees exactly what will change, applies it as uncommitted edits, and can undo it.</p>
+<p class="pull">Share the work, not the history.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<p class="p">The CLI is the whole engine. The VS Code extension is only a user interface over it, so there is one protocol and one place for bugs.</p>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Sender</div><div class="tier-c">
+<div class="node c-web"><b>CLI or VS Code</b>changeshare send, with paths, stash or commit</div>
+<div class="node c-be"><b>git.ts</b>builds a binary patch from a temporary index</div>
+<div class="node c-ship"><b>safety.ts</b>blocks .env, keys and likely secrets before sending</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>local network only</div>
+<div class="tier"><div class="tier-l">Transfer</div><div class="tier-c">
+<div class="node"><b>mDNS discovery</b>advertises a random service name, or connect with --host</div>
+<div class="node c-be hot"><b>One-shot HTTP listener</b>private interface, CPace handshake, encrypted envelope</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>one delivery, then the listener shuts down</div>
+<div class="tier"><div class="tier-l">Receiver</div><div class="tier-c">
+<div class="node c-web"><b>Review</b>files, line counts and sender before anything changes</div>
+<div class="node c-be"><b>Apply</b>Git checks the patch; three-way apply if bases differ</div>
+<div class="node c-data"><b>Undo</b>reverse patch saved in .git/changeshare</div>
+</div></div>
+<figcaption>src/cli.ts, git.ts, safety.ts and transfer.ts, about 1,400 lines of TypeScript</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">A spoken code that never crosses the wire</h2>
+<p class="p">The code is short so people can say it aloud. Short codes are easy to guess, and anyone on the same Wi-Fi can watch the traffic. So the code is never sent. Both sides use it in a <span class="term" tabindex="0">PAKE<span class="tip" role="tooltip">Password-authenticated key exchange: two parties who share a short secret agree on a strong key without revealing the secret.</span></span> called CPace, and only a device that knows the code ends up with the same session key.</p>
+<figure class="fig">
+<div class="pipe">
+<div class="step"><b>Code</b>the short one-time code</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>scrypt</b>random salt, N = 2¹⁵, slow to brute-force</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>CPace</b>on ristretto255, bound to a random session id</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>HKDF-SHA256</b>derive the payload key</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ship"><b>AES-256-GCM</b>gzipped patch, fresh 12-byte nonce</div>
+</div>
+<figcaption>src/transfer.ts. A wrong code gets 401; after 3 wrong codes the sender closes the session.</figcaption>
+</figure>
+<div class="full-only">
+<div class="code">
+<p>src/transfer.ts</p>
+<pre>function key(code: string, salt: Buffer) {
+  return scryptSync(code, salt, 32, {
+    N: 1 &lt;&lt; 15, r: 8, p: 1,
+    maxmem: 64 * 1024 * 1024,
+  });
+}
+// ...
+const session = cpace.ristretto255.init({ PRS: codeKey, sid, CI });</pre>
+</div>
+<h3 class="h3">Four more locks on the door</h3>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span>Sender</span></div><p>Listens only on a private or link-local address, never on the public internet.</p></div></div>
+<div class="seq-r"><span class="seq-n">2</span><div><div class="who"><span>Sender</span></div><p>Must approve each receiver by hand before the handshake starts.</p></div></div>
+<div class="seq-r"><span class="seq-n">3</span><div><div class="who"><span>Sender</span></div><p>Allows exactly one successful delivery, then shuts the listener down.</p></div></div>
+<div class="seq-r"><span class="seq-n">4</span><div><div class="who"><span>Sender</span></div><p>Expires after the configured number of minutes, even if nobody connects.</p></div></div>
+</div>
+</div>
+</section>
+
+<div class="full-only">
+<section id="git" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">Not touching your Git</h2>
+<p class="p">To capture untracked files in a patch you normally have to <code style="font-family: 'IBM Plex Mono', monospace; font-size: 16px">git add</code> them, which changes what you've staged. ChangeShare points <code style="font-family: 'IBM Plex Mono', monospace; font-size: 16px">GIT_INDEX_FILE</code> at a temporary index, loads HEAD into it, adds the working tree there and diffs that. Your real staging area is never touched, and the temporary index is deleted even if Git fails.</p>
+<div class="code">
+<p>src/git.ts</p>
+<pre>await git(["read-tree", "HEAD"], root, { GIT_INDEX_FILE: index });
+// add the working tree to the temporary index, then:
+await git(["diff", "--cached", "--binary", "--full-index",
+           "--no-ext-diff", "HEAD"], root, { GIT_INDEX_FILE: index });</pre>
+</div>
+<p class="p">Before anything is sent, filenames are checked against a denylist (.env*, *.pem, *.key, id_rsa*) and added lines are scanned for private keys, AWS keys, GitHub tokens and password-like assignments. Findings are shown to you rather than silently dropped.</p>
+</section>
+
+<section id="decisions" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>CPace with a spoken code</b></span><span data-l="Over">Sending the code, or certificates</span><span data-l="Because">A short code is safe even if someone watches the network.</span><span data-l="It costs">A crypto dependency to keep current.</span></div>
+<div class="row r4"><span data-l="I chose"><b>LAN only</b></span><span data-l="Over">A relay server</span><span data-l="Because">No cloud, no account, no telemetry.</span><span data-l="It costs">Both machines must be on one network.</span></div>
+<div class="row r4"><span data-l="I chose"><b>CLI as the engine</b></span><span data-l="Over">Logic in the editor extension</span><span data-l="Because">One protocol, testable from a terminal.</span><span data-l="It costs">The extension needs the CLI installed.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Patches, not commits</b></span><span data-l="Over">Sharing a branch</span><span data-l="Because">Nothing to clean up afterwards.</span><span data-l="It costs">Conflicts need a three-way apply.</span></div>
+</div>
+</section>
+</div>
+
+<section id="next" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>macOS and Windows</h4><p>Releases target Linux today. Discovery and firewalls are the work on the other two.</p></div>
+<div class="card"><h4>Pair with a QR code</h4><p>Show the code as a QR in VS Code for laptops that sit side by side.</p></div>
+<div class="card"><h4>Signed releases</h4><p>Sign the install script and packages, since a security tool should verify itself.</p></div>
+</div>
+</section>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/rustcart"><span>Previous, S-07</span><b>RustCart API</b></a>
+<a class="nv" href="/work/pdf-qa-rag" style="text-align: right"><span>Next, S-09</span><b>PDF-QA RAG</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Cryptographers, please break it and tell me how.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>

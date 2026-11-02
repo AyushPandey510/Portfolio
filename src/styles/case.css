@@ -1,0 +1,23 @@
+/* Shared additions for every case study (cs-*): Quick read, and the hero title block. */
+[class^="cs-"] li.full-only { display: list-item; }
+.quick .full-only { display: none !important; }
+.hero-tb { display: none; }
+@media (min-width: 1024px) {
+  [class^="cs-"] .hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); gap: 56px; align-items: end; }
+  [class^="cs-"] .hero > .hero-l > *:first-child { margin-top: 0; }
+  .hero-tb { display: block; margin: 0; border: 1.5px solid #0F1B3D; background: #F8FAFC; box-shadow: 10px 10px 0 rgba(36, 71, 214, .18); font-size: 15px; }
+  .hero-tb div { display: grid; grid-template-columns: 110px minmax(0, 1fr); border-top: 1px solid #0F1B3D; }
+  .hero-tb div:first-child { border-top: 0; }
+  .hero-tb dt, .hero-tb dd { margin: 0; padding: 11px 14px; }
+  .hero-tb dt { border-right: 1px solid #0F1B3D; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #3E4A6B; }
+  .hero-tb dd { font-weight: 700; overflow-wrap: anywhere; }
+  .hero-tb dd a { color: #2447D6; }
+  .hero-tb .big dd { font-size: 64px; line-height: .85; font-weight: 800; font-stretch: 75%; color: #2447D6; }
+}
+
+/* shown for a moment while a case study's article loads */
+.cs-wait { min-height: 100vh; padding: 120px 20px; max-width: 1100px; margin: 0 auto; }
+.cs-wait p { margin: 0; font-weight: 700; color: #2447D6; }
+.cs-wait h1 { margin: 8px 0 28px; font-size: clamp(64px, 12vw, 160px); line-height: .85; font-weight: 800; font-stretch: 75%; letter-spacing: -.02em; }
+.cs-wait i { display: block; height: 3px; width: 100%; background: linear-gradient(90deg, transparent, #2447D6, transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: load 1s linear infinite; }
+@keyframes load { from { background-position: -40% 0; } to { background-position: 140% 0; } }

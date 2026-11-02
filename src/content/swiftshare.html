@@ -1,0 +1,234 @@
+<div class="pg">
+
+<header class="top">
+<div class="top-in">
+<a class="brand" href="/"><svg width="28" height="28" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" fill="#2447D6"></rect><path d="M8 22 L13 8 L18 22 M9.8 17h6.4" fill="none" stroke="#FFFFFF" stroke-width="2.4"></path><path d="M21 8v14" stroke="#FFC857" stroke-width="2.4"></path></svg><span>Ayush Pandey</span></a>
+<span class="crumb">S-02 of 09</span>
+<div class="mode" role="group" aria-label="Reading mode">
+<button aria-pressed="false" data-mode="quick">Quick read</button>
+<button aria-pressed="true" data-mode="full">Full article</button>
+</div>
+</div>
+</header>
+
+<section class="hero">
+<p class="kicker">S-02, full-stack, solo build, live</p>
+<h1 class="title">SwiftShare</h1>
+<p class="dek">Send a file. Share a 6-character code. No account needed.</p>
+<div class="meta">
+<span class="chip">7 min read</span>
+<span class="chip">Rust, Warp, tokio</span>
+<span class="chip">React</span>
+<span class="chip">Flutter</span>
+<span class="chip">Electron</span>
+<span class="chip">SQLite</span>
+</div>
+<div class="links">
+<a class="btn btn-dark" href="https://swift-share-tau.vercel.app">Open the live app</a>
+<a class="btn btn-line" href="https://github.com/AyushPandey510/SwiftShare">Read the source</a>
+</div>
+</section>
+
+<section class="tldr" aria-label="The 30-second version">
+<div class="tldr-in">
+<div><h2>Problem</h2><p>Moving one file to someone shouldn't need an account, a chat app or a cable.</p></div>
+<div><h2>My role</h2><p>Everything: Rust API, React web app, Flutter Android app, Electron client, CI.</p></div>
+<div><h2>Measured result</h2><p>A 200 MB file passes through on 15 MB of server memory; 61,220 code lookups a second. <a href="#measured">How I measured</a></p></div>
+<div><h2>Hardest part</h2><p>Streaming files of up to 250 MB without ever holding one in memory, then deleting them on time.</p></div>
+</div>
+</section>
+
+<div class="body">
+<nav class="toc-d" aria-label="On this page">
+<p>On this page</p>
+<ol>
+<li class="full-only"><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li class="full-only"><a href="#flow">A file's journey</a></li><li><a href="#ci">Shipping it</a></li>
+<li><a href="#measured">Measured</a></li>
+<li class="full-only"><a href="#decisions">Decisions</a></li><li><a href="#next">What I'd change</a></li>
+</ol>
+</nav>
+
+<article class="art">
+<details class="toc-m">
+<summary>On this page</summary>
+<ol>
+<li><a href="#why">Why I built it</a></li>
+<li><a href="#arch">The architecture</a></li>
+<li><a href="#hard">The hard part</a></li>
+<li><a href="#flow">A file's journey</a></li>
+<li><a href="#ci">Shipping it</a></li>
+<li><a href="#measured">Measured</a></li>
+<li><a href="#decisions">Decisions</a></li>
+<li><a href="#next">What I'd change</a></li>
+</ol>
+</details>
+
+<div class="full-only">
+<section id="why" class="sec" style="margin-top: 32px">
+<p class="sec-n">01</p>
+<h2 class="h2">Why I built it</h2>
+<p class="p">Every time I needed to move a file from a lab computer to my phone, the options were to log in to something, mail it to myself, or find a cable. All I wanted was to say six characters out loud and have the other person type them.</p>
+<p class="p">So SwiftShare does one thing: you upload a file and get a short code, a link and a QR code. The other person uses any of the three. The file disappears after 24 hours, or after the number of downloads you chose, whichever comes first.</p>
+<p class="pull">One job, three ways to receive, nothing to sign up for.</p>
+</section>
+</div>
+
+<section id="arch" class="sec" style="margin-top: 32px">
+<p class="sec-n">02</p>
+<h2 class="h2">The architecture</h2>
+<p class="p">Three clients talk to one Rust service. The service keeps metadata in SQLite and file bytes on disk, and two background tasks run beside the API in the same process.</p>
+<figure class="fig">
+<div class="tier"><div class="tier-l">Clients</div><div class="tier-c">
+<div class="node c-web"><b>React web app</b>Vite, TanStack Query, shadcn/ui. Live on Vercel.</div>
+<div class="node c-mob"><b>Flutter Android</b>Upload, download, QR scanning. Beta.</div>
+<div class="node c-web"><b>Electron desktop</b>React and Zustand. Experimental.</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>HTTPS, multipart upload, streamed download</div>
+<div class="tier"><div class="tier-l">Warp API on Render</div><div class="tier-c">
+<div class="node c-be hot"><b>Upload and download</b>streamed, 250 MB limit</div>
+<div class="node c-be"><b>Share codes and QR</b>6 characters, link and QR image</div>
+<div class="node"><b>Expiry sweeper</b>every 60 s, deletes expired files</div>
+<div class="node dash"><b>LAN discovery</b>experimental, probes 64 hosts at once</div>
+</div></div>
+<div class="link"><svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true"><path d="M8 2v16M3 13l5 5 5-5" fill="none" stroke="#0F1B3D" stroke-width="2.2"></path></svg>sqlx and tokio::fs</div>
+<div class="tier"><div class="tier-l">Storage</div><div class="tier-c">
+<div class="node c-data"><b>SQLite</b>code, filename, expiry, download count and limit</div>
+<div class="node c-data"><b>Server disk</b>the file bytes, named code_filename</div>
+</div></div>
+<figcaption>One Docker image, deployed on Render; the web app is on Vercel.</figcaption>
+</figure>
+</section>
+
+<section id="hard" class="sec">
+<p class="sec-n" style="color: #B3261E">03, the hard part</p>
+<h2 class="h2">Never hold a whole file in memory</h2>
+<p class="p">A naive upload handler reads the request into memory and then writes it out. With a 250 MB limit and a few people uploading at once, that is a server that falls over. SwiftShare <span class="term" tabindex="0">streams<span class="tip" role="tooltip">Moves data in small pieces as it arrives, instead of loading all of it first.</span></span> both ways: the multipart body is written to disk chunk by chunk, and downloads are read from disk in chunks straight into the response.</p>
+<figure class="fig">
+<div class="pipe">
+<div class="step"><b>Receive</b>multipart part arrives as a stream</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step hot"><b>Write chunks</b>each chunk goes to disk, then is dropped</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step"><b>Pick a code</b>unused in memory, SQLite and on disk</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-data"><b>Save record</b>expiry in 24 h, 1 to 10 downloads</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-be"><b>Answer</b>code, link and QR</div>
+</div>
+<figcaption>upload_file_multipart in backend/src/main.rs</figcaption>
+</figure>
+<p class="p">The proof is in the measurements below: a 200 MB file went up and back down with an identical checksum while the server's peak memory moved from 11.5 MB to 14.9 MB.</p>
+<div class="full-only">
+<h3 class="h3">Six characters, checked three ways</h3>
+<div class="code">
+<p>backend/src/main.rs</p>
+<pre>fn generate_file_code() -&gt; String {
+    rand::thread_rng()
+        .sample_iter(&amp;Alphanumeric)
+        .map(char::from)
+        .map(|c| c.to_ascii_uppercase())
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(6)
+        .collect()
+}</pre>
+</div>
+<p class="p">Uppercasing makes codes easy to read aloud and leaves 36 symbols, so there are about 2.2 billion codes. Before a code is used, the server checks that no live upload in memory, no row in SQLite and no file on disk already has it.</p>
+</div>
+</section>
+
+<div class="full-only">
+<section id="flow" class="sec">
+<p class="sec-n">04</p>
+<h2 class="h2">A file's journey</h2>
+<div class="seq">
+<div class="seq-r"><span class="seq-n">1</span><div><div class="who"><span class="c-web">Sender</span>to<span class="c-be">API</span></div><p>POST /api/upload as multipart, with the file and a download limit from 1 to 10.</p></div></div>
+<div class="seq-r hot"><span class="seq-n" style="background: #D7361F">2</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">Disk</span></div><p>Stream the file to disk in chunks, then pick an unused 6-character code.</p></div></div>
+<div class="seq-r"><span class="seq-n">3</span><div><div class="who"><span class="c-be">API</span>to<span class="c-data">SQLite</span></div><p>Save code, filename, size, expiry and limit. Return code, link and QR.</p></div></div>
+<div class="seq-r"><span class="seq-n">4</span><div><div class="who"><span class="c-mob">Receiver</span>to<span class="c-be">API</span></div><p>GET /api/download/:code. The API checks expiry and the download limit, then adds one to the count.</p></div></div>
+<div class="seq-r"><span class="seq-n">5</span><div><div class="who"><span class="c-be">API</span>to<span class="c-mob">Receiver</span></div><p>Stream the file back with no-store caching and nosniff headers.</p></div></div>
+<div class="seq-r"><span class="seq-n">6</span><div><div class="who"><span>Sweeper</span>to<span class="c-data">Disk</span></div><p>Every 60 s, delete files that have expired or used up their downloads.</p></div></div>
+</div>
+</section>
+
+<section id="ci" class="sec">
+<p class="sec-n">05</p>
+<h2 class="h2">Shipping it</h2>
+<p class="p">One GitHub Actions workflow checks all three clients and the server before anything reaches Render.</p>
+<figure class="fig">
+<div class="pipe">
+<div class="step c-be"><b>Rust</b>build, tests, clippy, fmt</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-web"><b>Desktop</b>Node install, tests, build</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-mob"><b>Flutter</b>analyze and tests</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ship"><b>Docker</b>build the image, start it, curl /health</div>
+<div class="arr"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 10h12M10 5l5 5-5 5" fill="none" stroke="#0F1B3D" stroke-width="2.4"></path></svg></div>
+<div class="step c-ship"><b>Trivy</b>scan for known vulnerabilities</div>
+</div>
+<figcaption>.github/workflows/ci.yml</figcaption>
+</figure>
+</section>
+</div>
+
+<section id="measured" class="sec">
+<p class="sec-n">06</p>
+<h2 class="h2">Measured, not claimed</h2>
+<div class="machine">2 vCPU Xeon 2.1 GHz, 7 GB RAM, loopback network, no TLS. Server and load generator on one box, so these are lower bounds. oha 1.16, 5 s warm-up, 30 s measured.</div>
+<div class="stats">
+<div class="stat"><b>15 MB</b><span>peak server memory while a 200 MB file went up and back down, checksum identical</span><i>METHOD.md, VmHWM readings</i></div>
+<div class="stat"><b>61,220/s</b><span>share-code lookups, 64 connections; 99% within 3.3 ms</span><i>raw/lookup_c64.txt</i></div>
+<div class="stat"><b>140/s</b><span>1 MB uploads, 16 connections, 0 errors</span><i>raw/upload_1mb_c16.txt</i></div>
+</div>
+<div class="note">
+<h3>Something I still need to fix</h3>
+<p>Under 16 concurrent uploads, the slowest 1% took 1.2 s against a median of 51 ms. That tail is real, and disk writes on this machine are the likely cause. Finding it is next on my list.</p>
+</div>
+<div class="links"><a class="btn btn-dark" href="https://github.com/AyushPandey510/SwiftShare">Read the source on GitHub</a></div>
+</section>
+
+<div class="full-only">
+<section id="decisions" class="sec">
+<p class="sec-n">07</p>
+<h2 class="h2">Decisions and what they cost</h2>
+<div class="rows">
+<div class="rows-h r4"><span>I chose</span><span>Over</span><span>Because</span><span>It costs</span></div>
+<div class="row r4"><span data-l="I chose"><b>Short codes</b></span><span data-l="Over">Long random links</span><span data-l="Because">Six characters can be read aloud or typed on a phone.</span><span data-l="It costs">A smaller space to guess, so lookups need rate limits.</span></div>
+<div class="row r4"><span data-l="I chose"><b>SQLite</b></span><span data-l="Over">Postgres</span><span data-l="Because">Tiny metadata, one node, zero setup.</span><span data-l="It costs">One writer and one instance.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Files on the server's disk</b></span><span data-l="Over">Object storage</span><span data-l="Because">Simplest thing that works with streaming.</span><span data-l="It costs">On Render's free plan the disk is wiped on redeploy.</span></div>
+<div class="row r4"><span data-l="I chose"><b>Warp on tokio</b></span><span data-l="Over">A Node server</span><span data-l="Because">Streaming bodies with flat, predictable memory.</span><span data-l="It costs">Stricter types, slower first version.</span></div>
+</div>
+</section>
+
+<section id="next" class="sec">
+<p class="sec-n">08</p>
+<h2 class="h2">What I'd change next</h2>
+<div class="cards">
+<div class="card"><h4>Rate-limit code lookups</h4><p>2.2 billion codes is plenty for typing, not for a bot. Per-IP limits on /api/file and /api/download come first.</p></div>
+<div class="card"><h4>Encrypt at rest</h4><p>An AES-256-GCM module is already in the repo but not on the upload path yet. Wiring it in is a small change.</p></div>
+<div class="card"><h4>Object storage</h4><p>S3 or R2 with signed URLs, so files survive redeploys and more than one instance can serve them.</p></div>
+<div class="card"><h4>Resumable uploads</h4><p>Mobile networks drop. Chunked, resumable uploads would stop a 200 MB upload restarting from zero.</p></div>
+</div>
+</section>
+</div>
+
+<nav class="nav2" aria-label="More case studies">
+<a class="nv" href="/work/space"><span>Previous, S-01</span><b>Space</b></a>
+<a class="nv" href="/work/life-engine" style="text-align: right"><span>Next, S-03</span><b>Life Engine AI</b></a>
+</nav>
+<div class="author">
+<p>Written and built by Ayush Pandey. Try it with a real file, then tell me what broke.</p>
+<a class="btn btn-line" href="mailto:ayushgauravpandey@gmail.com">Email me</a>
+</div>
+</article>
+</div>
+
+<div class="cbar">
+<a href="mailto:ayushgauravpandey@gmail.com" style="background: #FFFFFF; color: #0F1B3D">Email</a>
+<a href="/Ayush_Pandey_Resume.pdf" style="border: 2px solid #FFFFFF; color: #FFFFFF">Resume</a>
+</div>
+
+</div>
